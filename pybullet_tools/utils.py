@@ -844,19 +844,20 @@ def get_urdf_flags(cache=False, cylinder=False, merge=False, sat=False):
     #flags |= p.URDF_USE_INERTIA_FROM_FILE
     return flags
 
-def load_pybullet(filename, fixed_base=False, scale=1., **kwargs):
+def load_pybullet(filename, fixed_base=False, scale=1., client=None, **kwargs):
+    client = client or p
     # fixed_base=False implies infinite base mass
     with LockRenderer():
         flags = get_urdf_flags(**kwargs)
         if filename.endswith('.urdf'):
-            body = p.loadURDF(filename, useFixedBase=fixed_base, flags=flags,
+            body = client.loadURDF(filename, useFixedBase=fixed_base, flags=flags,
                               globalScaling=scale, physicsClientId=CLIENT)
         elif filename.endswith('.sdf'):
-            body = p.loadSDF(filename, physicsClientId=CLIENT)
+            body = client.loadSDF(filename, physicsClientId=CLIENT)
         elif filename.endswith('.xml'):
-            body = p.loadMJCF(filename, physicsClientId=CLIENT, flags=flags)
+            body = client.loadMJCF(filename, physicsClientId=CLIENT, flags=flags)
         elif filename.endswith('.bullet'):
-            body = p.loadBullet(filename, physicsClientId=CLIENT)
+            body = client.loadBullet(filename, physicsClientId=CLIENT)
         elif filename.endswith('.obj'):
             # TODO: fixed_base => mass = 0?
             body = create_obj(filename, scale=scale, **kwargs)
@@ -2569,9 +2570,11 @@ def get_faces_geometry(mesh, vertex_textures=None, vertex_normals=None, scale=1.
 
 NULL_ID = -1
 
-def create_collision_shape(geometry, pose=unit_pose()):
+def create_collision_shape(geometry, pose=unit_pose(), client=None, **kwargs):
     # TODO: removeCollisionShape
-    # https://github.com/bulletphysics/bullet3/blob/5ae9a15ecac7bc7e71f1ec1b544a55135d7d7e32/examples/pybullet/examples/getClosestPoints.py
+    # https://github.com/bulletphysics/bullet3/blob/5ae9a15ecac7bc7e71f1ec1b544a55135d7d7e32/examples/pybullet/examples/getClosestPoints.py\
+
+    client = client or p
     point, quat = pose
     collision_args = {
         'collisionFramePosition': point,
@@ -2584,7 +2587,7 @@ def create_collision_shape(geometry, pose=unit_pose()):
         # TODO: pybullet bug visual => length, collision => height
         collision_args['height'] = collision_args['length']
         del collision_args['length']
-    return p.createCollisionShape(**collision_args)
+    return client.createCollisionShape(**collision_args)
 
 def create_heightfield(mesh):
     raise NotImplementedError()
@@ -2594,7 +2597,8 @@ def create_heightfield(mesh):
     # p.GEOM_FORCE_CONCAVE_TRIMESH
     return p.createCollisionShape(p.GEOM_MESH, vertices=[], indices=[])
 
-def create_visual_shape(geometry, pose=unit_pose(), color=RED, specular=None):
+def create_visual_shape(geometry, pose=unit_pose(), color=RED, specular=None, client=None, **kwargs):
+    client = client or p
     if (color is None): # or not has_gui():
         return NULL_ID
     point, quat = pose
@@ -2607,10 +2611,10 @@ def create_visual_shape(geometry, pose=unit_pose(), color=RED, specular=None):
     visual_args.update(geometry)
     if specular is not None:
         visual_args['specularColor'] = specular
-    return p.createVisualShape(**visual_args)
+    return client.createVisualShape(**visual_args)
 
 def create_shape(geometry, pose=unit_pose(), collision=True, **kwargs):
-    collision_id = create_collision_shape(geometry, pose=pose) if collision else NULL_ID
+    collision_id = create_collision_shape(geometry, pose=pose, **kwargs) if collision else NULL_ID
     visual_id = create_visual_shape(geometry, pose=pose, **kwargs) # if collision else NULL_ID
     return collision_id, visual_id
 
@@ -2663,8 +2667,9 @@ LinkInfo = named_tuple('LinkInfo', *unzip(
      ('inertial_point', unit_point()), ('inertial_quat', unit_quat()),
      ('parent', 0), ('joint_type', p.JOINT_FIXED), ('joint_axis', unit_point())]))
 
-def create_body(collision_id=NULL_ID, visual_id=NULL_ID, mass=STATIC_MASS):
-    return p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=collision_id,
+def create_body(collision_id=NULL_ID, visual_id=NULL_ID, mass=STATIC_MASS, client=None, **kwargs):
+    client = client or p
+    return client.createMultiBody(baseMass=mass, baseCollisionShapeIndex=collision_id,
                              baseVisualShapeIndex=visual_id, physicsClientId=CLIENT)
 
 def create_multi_body(base_link=None, links=[]):
@@ -2719,7 +2724,7 @@ T3 = ['x', 'y', 'z']
 SE2 = T2 + ['yaw']
 SE3 = T3 + ['roll', 'pitch', 'yaw']
 
-def create_flying_body(group, collision_id=NULL_ID, visual_id=NULL_ID, mass=STATIC_MASS):
+def create_flying_body(group, collision_id=NULL_ID, visual_id=NULL_ID, mass=STATIC_MASS, **kwargs):
     # TODO: more generally clone the body
     indices = list(range(len(group) + 1))
     masses = len(group) * [STATIC_MASS] + [mass]
@@ -2761,33 +2766,33 @@ def create_flying_body(group, collision_id=NULL_ID, visual_id=NULL_ID, mass=STAT
 
 def create_box(w, l, h, mass=STATIC_MASS, color=RED, **kwargs):
     collision_id, visual_id = create_shape(get_box_geometry(w, l, h), color=color, **kwargs)
-    return create_body(collision_id, visual_id, mass=mass)
+    return create_body(collision_id, visual_id, mass=mass, **kwargs)
     # basePosition | baseOrientation
     # linkCollisionShapeIndices | linkVisualShapeIndices
 
 def create_cylinder(radius, height, mass=STATIC_MASS, color=BLUE, **kwargs):
     collision_id, visual_id = create_shape(get_cylinder_geometry(radius, height), color=color, **kwargs)
-    return create_body(collision_id, visual_id, mass=mass)
+    return create_body(collision_id, visual_id, mass=mass, **kwargs)
 
 def create_capsule(radius, height, mass=STATIC_MASS, color=BLUE, **kwargs):
     collision_id, visual_id = create_shape(get_capsule_geometry(radius, height), color=color, **kwargs)
-    return create_body(collision_id, visual_id, mass=mass)
+    return create_body(collision_id, visual_id, mass=mass, **kwargs)
 
 def create_sphere(radius, mass=STATIC_MASS, color=BLUE, **kwargs):
     collision_id, visual_id = create_shape(get_sphere_geometry(radius), color=color, **kwargs)
-    return create_body(collision_id, visual_id, mass=mass)
+    return create_body(collision_id, visual_id, mass=mass, **kwargs)
 
 def create_plane(normal=[0, 0, 1], mass=STATIC_MASS, color=BLACK, **kwargs):
     # color seems to be ignored in favor of a texture
     collision_id, visual_id = create_shape(get_plane_geometry(normal), color=color, **kwargs)
-    body = create_body(collision_id, visual_id, mass=mass)
+    body = create_body(collision_id, visual_id, mass=mass, **kwargs)
     set_texture(body, texture=None) # otherwise 'plane.urdf'
     set_color(body, color=color) # must perform after set_texture
     return body
 
 def create_obj(path, scale=1., mass=STATIC_MASS, color=GREY, **kwargs):
     collision_id, visual_id = create_shape(get_mesh_geometry(path, scale=scale), color=color, **kwargs)
-    body = create_body(collision_id, visual_id, mass=mass)
+    body = create_body(collision_id, visual_id, mass=mass, **kwargs)
     fixed_base = (mass == STATIC_MASS)
     INFO_FROM_BODY[CLIENT, body] = ModelInfo(None, path, fixed_base, scale) # TODO: store geometry info instead?
     return body

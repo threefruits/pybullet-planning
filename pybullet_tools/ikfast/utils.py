@@ -20,7 +20,7 @@ def compute_forward_kinematics(fk_fn, conf):
     return pos, quat
 
 
-def compute_inverse_kinematics(ik_fn, pose, sampled=[]):
+def compute_inverse_kinematics(ik_fn, pose, sampled=[], **kwargs):
     pos = point_from_pose(pose)
     rot = matrix_from_quat(quat_from_pose(pose)).tolist()
     if len(sampled) == 0:

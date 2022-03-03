@@ -144,7 +144,7 @@ def compute_min_duration(distance, max_velocity, acceleration):
         total_time = 2 * half_time
     return total_time
 
-def ramp_retime_path(path, max_velocities, acceleration_fraction=INF, sample_step=None):
+def ramp_retime_path(path, max_velocities, acceleration_fraction=INF, sample_step=None, **kwargs):
     """
     :param path:
     :param max_velocities:
@@ -184,10 +184,10 @@ def retime_trajectory(robot, joints, path, only_waypoints=False,
     :param velocity_fraction: fraction of max_velocity
     :return:
     """
-    path = adjust_path(robot, joints, path)
+    path = adjust_path(robot, joints, path, **kwargs)
     if only_waypoints:
         path = waypoints_from_path(path)
-    max_velocities = velocity_fraction * np.array(get_max_velocities(robot, joints))
+    max_velocities = velocity_fraction * np.array(get_max_velocities(robot, joints, **kwargs))
     return ramp_retime_path(path, max_velocities, **kwargs)
 
 ################################################################################
@@ -223,7 +223,7 @@ def interpolate_path(robot, joints, path, velocity_fraction=DEFAULT_SPEED_FRACTI
     # https://docs.scipy.org/doc/scipy/reference/tutorial/interpolate.html
     # Waypoints are followed perfectly, twice continuously differentiable
     # TODO: https://pythonrobotics.readthedocs.io/en/latest/modules/path_tracking.html#mpc-modeling
-    path, time_from_starts = retime_trajectory(robot, joints, path, velocity_fraction=velocity_fraction, sample_step=None)
+    path, time_from_starts = retime_trajectory(robot, joints, path, velocity_fraction=velocity_fraction, sample_step=None, **kwargs)
     if k == 3:
         if bspline:
             positions = approximate_spline(time_from_starts, path, k=k, **kwargs)

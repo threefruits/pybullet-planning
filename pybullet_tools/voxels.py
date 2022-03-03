@@ -326,6 +326,7 @@ class VoxelGrid(object):
                     start = last = k
             interval = (start, last)
             voxel_intervals.append((i, j, interval))
+
         return voxel_intervals
     def draw_intervals(self):
         with LockRenderer():

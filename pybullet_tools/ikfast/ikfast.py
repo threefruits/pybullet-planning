@@ -63,26 +63,26 @@ def check_ik_solver(ikfast_info):
 
 ##################################################
 
-def get_base_from_ee(robot, ikfast_info, tool_link, world_from_target):
-    ee_link = link_from_name(robot, ikfast_info.ee_link)
-    tool_from_ee = get_relative_pose(robot, ee_link, tool_link)
-    world_from_base = get_link_pose(robot, link_from_name(robot, ikfast_info.base_link))
+def get_base_from_ee(robot, ikfast_info, tool_link, world_from_target, **kwargs):
+    ee_link = link_from_name(robot, ikfast_info.ee_link, **kwargs)
+    tool_from_ee = get_relative_pose(robot, ee_link, tool_link, **kwargs)
+    world_from_base = get_link_pose(robot, link_from_name(robot, ikfast_info.base_link, **kwargs), **kwargs)
     return multiply(invert(world_from_base), world_from_target, tool_from_ee)
 
 
-def get_ik_joints(robot, ikfast_info, tool_link):
+def get_ik_joints(robot, ikfast_info, tool_link, **kwargs):
     # Get joints between base and ee
     # Ensure no joints between ee and tool
-    base_link = link_from_name(robot, ikfast_info.base_link)
-    ee_link = link_from_name(robot, ikfast_info.ee_link)
-    ee_ancestors = get_ordered_ancestors(robot, ee_link)
-    tool_ancestors = get_ordered_ancestors(robot, tool_link)
+    base_link = link_from_name(robot, ikfast_info.base_link, **kwargs)
+    ee_link = link_from_name(robot, ikfast_info.ee_link, **kwargs)
+    ee_ancestors = get_ordered_ancestors(robot, ee_link, **kwargs)
+    tool_ancestors = get_ordered_ancestors(robot, tool_link, **kwargs)
     [first_joint] = [parent_joint_from_link(link) for link in tool_ancestors
-                     if parent_link_from_joint(robot, parent_joint_from_link(link)) == base_link]
-    assert prune_fixed_joints(robot, ee_ancestors) == prune_fixed_joints(robot, tool_ancestors)
+                     if parent_link_from_joint(robot, parent_joint_from_link(link), **kwargs) == base_link]
+    assert prune_fixed_joints(robot, ee_ancestors, **kwargs) == prune_fixed_joints(robot, tool_ancestors, **kwargs)
     #assert base_link in ee_ancestors # base_link might be -1
-    ik_joints = prune_fixed_joints(robot, ee_ancestors[ee_ancestors.index(first_joint):])
-    free_joints = joints_from_names(robot, ikfast_info.free_joints)
+    ik_joints = prune_fixed_joints(robot, ee_ancestors[ee_ancestors.index(first_joint):], **kwargs)
+    free_joints = joints_from_names(robot, ikfast_info.free_joints, **kwargs)
     assert set(free_joints) <= set(ik_joints)
     assert len(ik_joints) == 6 + len(free_joints)
     return ik_joints
@@ -101,20 +101,20 @@ def check_solution(robot, joints, conf, tool_link, target_pose, tolerance=1e-6):
     return valid
 
 
-def ikfast_forward_kinematics(robot, ikfast_info, tool_link, conf=None, use_ikfast=True):
+def ikfast_forward_kinematics(robot, ikfast_info, tool_link, conf=None, use_ikfast=True, **kwargs):
     # TODO: cleanup ./pr2/ik.py
     # from .ikLeft import leftFK
     # from .ikRight import rightFK
     # arm_fk = {'left': leftFK, 'right': rightFK}
     # fk_fn = arm_fk[arm]
 
-    ik_joints = get_ik_joints(robot, ikfast_info, tool_link)
+    ik_joints = get_ik_joints(robot, ikfast_info, tool_link, **kwargs)
     if conf is None:
-        conf = get_joint_positions(robot, ik_joints)
+        conf = get_joint_positions(robot, ik_joints, **kwargs)
 
     if not use_ikfast:
-        set_joint_positions(robot, ik_joints, conf)
-        world_from_tool = get_link_pose(robot, tool_link)
+        set_joint_positions(robot, ik_joints, conf, **kwargs)
+        world_from_tool = get_link_pose(robot, tool_link, **kwargs)
         # print(world_from_tool)
         check_solution(robot, ik_joints, conf, tool_link, world_from_tool)
         return world_from_tool
@@ -122,8 +122,8 @@ def ikfast_forward_kinematics(robot, ikfast_info, tool_link, conf=None, use_ikfa
     ikfast = import_ikfast(ikfast_info)
     base_from_ee = compute_forward_kinematics(ikfast.get_fk, conf)
 
-    world_from_base = get_link_pose(robot, link_from_name(robot, ikfast_info.base_link))
-    tool_from_ee = get_relative_pose(robot, link_from_name(robot, ikfast_info.ee_link), tool_link)
+    world_from_base = get_link_pose(robot, link_from_name(robot, ikfast_info.base_link, **kwargs), **kwargs)
+    tool_from_ee = get_relative_pose(robot, link_from_name(robot, ikfast_info.ee_link, **kwargs), tool_link, **kwargs)
     world_from_tool = multiply(world_from_base, base_from_ee, invert(tool_from_ee))
 
     #print(world_from_tool)

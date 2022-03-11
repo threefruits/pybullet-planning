@@ -27,7 +27,7 @@ from contextlib import contextmanager
 from pybullet_utils.transformations import quaternion_from_matrix, unit_vector, euler_from_quaternion, quaternion_slerp, \
     random_quaternion, quaternion_about_axis
 
-DEFAULT_CLIENT = p
+DEFAULT_CLIENT = None
 
 def join_paths(*paths):
     return os.path.abspath(os.path.join(*paths))
@@ -1037,15 +1037,15 @@ def simulate_for_sim_duration(sim_duration, real_dt=0, frequency=INF):
         sim_time += sim_dt
         time.sleep(real_dt)
 
-def wait_for_user(message='Press enter to continue'):
-    if has_gui() and is_darwin():
+def wait_for_user(message='Press enter to continue', **kwargs):
+    if has_gui(**kwargs) and is_darwin():
         # OS X doesn't multi-thread the OpenGL visualizer
         #wait_for_interrupt()
         return threaded_input(message)
     return user_input(message)
 
 def wait_if_gui(*args, **kwargs):
-    if has_gui():
+    if has_gui(**kwargs):
         wait_for_user(*args, **kwargs)
 
 def wait_if_unlocked(*args, **kwargs):
@@ -1223,6 +1223,7 @@ def get_connection(client=None):
     return client.getConnectionInfo()['connectionMethod']
 
 def has_gui(client=None):
+    client = client or DEFAULT_CLIENT
     return get_connection(client = client) == p.GUI
 
 def get_data_path():
@@ -1474,7 +1475,7 @@ def save_image(filename, rgba):
     #     raise ValueError(filename)
     print('Saved image at {}'.format(filename))
 
-def get_projection_matrix(width, height, vertical_fov, near, far, client=None):
+def get_projection_matrix(width, height, vertical_fov, near, far, client=None, **kwargs):
     """
     OpenGL projection matrix
     :param width: 
@@ -1567,7 +1568,7 @@ def get_image(camera_pos=None, target_pos=None, width=640, height=480, vertical_
         view_matrix = client.computeViewMatrix(cameraEyePosition=camera_pos, cameraTargetPosition=target_pos,
                                           cameraUpVector=up_vector)
         camera_flags['viewMatrix'] = view_matrix
-    projection_matrix = get_projection_matrix(width, height, vertical_fov, near, far)
+    projection_matrix = get_projection_matrix(width, height, vertical_fov, near, far, client=client)
 
     # assert compiled_with_numpy() # copying pixels from C/C++ to Python can be really slow for large images, unless you compile PyBullet using NumPy
     flags = get_image_flags(segment=segment, **kwargs)
@@ -1890,13 +1891,13 @@ def has_body(name):
         return False
     return True
 
-def body_from_name(name):
-    for body in get_bodies():
-        if get_body_name(body) == name:
+def body_from_name(name, **kwargs):
+    for body in get_bodies(**kwargs):
+        if get_body_name(body, **kwargs) == name:
             return body
     raise ValueError(name)
 
-def remove_body(body, client=None):
+def remove_body(body, client=None, **kwargs):
     client = client or DEFAULT_CLIENT
     if (CLIENT, body) in INFO_FROM_BODY:
         del INFO_FROM_BODY[CLIENT, body]
@@ -1907,17 +1908,17 @@ def get_pose(body, client = None, **kwargs):
     return client.getBasePositionAndOrientation(body)
     #return np.concatenate([point, quat])
 
-def get_point(body):
-    return get_pose(body)[0]
+def get_point(body, **kwargs):
+    return get_pose(body, **kwargs)[0]
 
-def get_quat(body):
-    return get_pose(body)[1] # [x,y,z,w]
+def get_quat(body, **kwargs):
+    return get_pose(body, **kwargs)[1] # [x,y,z,w]
 
-def get_euler(body):
-    return euler_from_quat(get_quat(body))
+def get_euler(body, **kwargs):
+    return euler_from_quat(get_quat(body, **kwargs))
 
-def get_base_values(body):
-    return base_values_from_pose(get_pose(body))
+def get_base_values(body, **kwargs):
+    return base_values_from_pose(get_pose(body, **kwargs))
 
 def set_pose(body, pose, client=None, **kwargs):
     client = client or DEFAULT_CLIENT
@@ -2503,8 +2504,8 @@ def set_collision_margin(body, link=BASE_LINK, margin=0., **kwargs):
 def set_mass(body, mass, link=BASE_LINK, **kwargs): # mass in kg
     set_dynamics(body, link=link, mass=mass, **kwargs)
 
-def set_static(body):
-    for link in get_all_links(body):
+def set_static(body, **kwargs):
+    for link in get_all_links(body, **kwargs):
         set_mass(body, mass=STATIC_MASS, link=link)
 
 def set_all_static():
@@ -2890,7 +2891,7 @@ def visual_shape_from_data(data, client=None, **kwargs):
                                visualFramePosition=point,
                                visualFrameOrientation=quat)
 
-def get_visual_data(body, link=BASE_LINK, client=None):
+def get_visual_data(body, link=BASE_LINK, client=None, **kwargs):
     # TODO: might require the viewer to be active
     # TODO: does not work if not base link
     #flags = 0
@@ -3045,8 +3046,8 @@ def get_collision_data(body, link=BASE_LINK, client=None, **kwargs):
 def can_collide(body, link=BASE_LINK, **kwargs):
     return len(get_collision_data(body, link=link, **kwargs)) != 0
 
-def get_first_link(body):
-    return next(link for link in get_all_links(body) if can_collide(body, link, **kwargs))
+def get_first_link(body, **kwargs):
+    return next(link for link in get_all_links(body, **kwargs) if can_collide(body, link, **kwargs))
 
 def get_data_link(data):
     if isinstance(data, CollisionShapeData):
@@ -3223,8 +3224,8 @@ def aabb_empty(aabb):
     lower, upper = aabb
     return np.less(upper, lower).any()
 
-def is_aabb_degenerate(aabb):
-    return get_aabb_volume(aabb) <= 0.
+def is_aabb_degenerate(aabb, **kwargs):
+    return get_aabb_volume(aabb, **kwargs) <= 0.
 
 def aabb_intersection(*aabbs):
     # https://github.mit.edu/caelan/lis-openrave/blob/master/manipulation/bodies/bounding_volumes.py
@@ -3235,13 +3236,13 @@ def aabb_intersection(*aabbs):
         return None
     return aabb
 
-def get_aabbs(body, links=None, only_collision=True, client=None, **kwargs):
+def get_aabbs(body, links=None, only_collision=True, **kwargs):
     if links is None:
-        links = get_all_links(body, client=client)
+        links = get_all_links(body, **kwargs)
     if only_collision:
         # TODO: return the null bounding box
         links = [link for link in links if can_collide(body, link, **kwargs)]
-    return [get_aabb(body, link=link) for link in links]
+    return [get_aabb(body, link=link, **kwargs) for link in links]
 
 def get_aabb(body, link=None, client = None, **kwargs):
     # Note that the query is conservative and may return additional objects that don't have actual AABB overlap.
@@ -3253,13 +3254,13 @@ def get_aabb(body, link=None, client = None, **kwargs):
     # Computes the AABB of the collision geometry
     client = client or DEFAULT_CLIENT
     if link is None:
-        return aabb_union(get_aabbs(body, **kwargs))
+        return aabb_union(get_aabbs(body, client=client, **kwargs))
     # when you don't pass the link index, or use -1, you get the AABB of the base
     # Always recomputes (no caching)
     return AABB(*client.getAABB(body, linkIndex=link))
 
 def get_subtree_aabb(body, root_link=BASE_LINK, **kwargs):
-    return aabb_union(get_aabbs(body, links=get_link_subtree(body, root_link), **kwargs))
+    return aabb_union(get_aabbs(body, links=get_link_subtree(body, root_link, **kwargs), **kwargs))
 
 get_lower_upper = get_aabb
 
@@ -3630,9 +3631,9 @@ def pairwise_link_collision(body1, link1, body2, link2=BASE_LINK, **kwargs):
 def any_link_pair_collision(body1, links1, body2, links2=None, **kwargs):
     # TODO: this likely isn't needed anymore
     if links1 is None:
-        links1 = get_all_links(body1)
+        links1 = get_all_links(body1, **kwargs)
     if links2 is None:
-        links2 = get_all_links(body2)
+        links2 = get_all_links(body2, **kwargs)
     for link1, link2 in product(links1, links2):
         if (body1 == body2) and (link1 == link2):
             continue
@@ -4097,7 +4098,7 @@ def plan_lazy_prm(start_conf, end_conf, sample_fn, extend_fn, collision_fn, **kw
         elif not colliding_vertices.get((i1, i2), True):
             color = BLACK
         handles.append(add_line(draw_fn(samples[i1]), draw_fn(samples[i2]), color=color))
-    wait_if_gui()
+    wait_if_gui(**kwargs)
     return path
 
 #####################################
@@ -4415,38 +4416,38 @@ def plan_base_motion(body, end_conf, base_limits, obstacles=[], direct=False,
 
 # TODO: extend these to oobbs
 
-def base_aligned(body, target=np.zeros(3)):
+def base_aligned(body, target=np.zeros(3), **kwargs):
     # TODO: apply elsewhere
-    return (target - get_aabb_base(get_aabb(body))) + get_point(body)
+    return (target - get_aabb_base(get_aabb(body, **kwargs))) + get_point(body)
 
 def base_aligned_z(body, z=0.):
     # TODO: generalize to other dimensions and fraction along the dimension
     return base_aligned(body, target=np.array([0, 0, z]))[2]
 
-def stable_z_on_aabb(body, aabb):
-    center, extent = get_center_extent(body)
+def stable_z_on_aabb(body, aabb, **kwargs):
+    center, extent = get_center_extent(body, **kwargs)
     _, upper = aabb
     return (upper + extent/2 + (get_point(body) - center))[2]
 
-def stable_z(body, surface, surface_link=None):
-    return stable_z_on_aabb(body, get_aabb(surface, link=surface_link))
+def stable_z(body, surface, surface_link=None, **kwargs):
+    return stable_z_on_aabb(body, get_aabb(surface, link=surface_link, **kwargs))
 
-def is_placed_on_aabb(body, bottom_aabb, above_epsilon=1e-2, below_epsilon=0.0):
+def is_placed_on_aabb(body, bottom_aabb, above_epsilon=1e-2, below_epsilon=0.0, **kwargs):
     assert (0 <= above_epsilon) and (0 <= below_epsilon)
-    top_aabb = get_aabb(body) # TODO: approximate_as_prism
+    top_aabb = get_aabb(body, **kwargs) # TODO: approximate_as_prism
     top_z_min = top_aabb[0][2]
     bottom_z_max = bottom_aabb[1][2]
     return ((bottom_z_max - abs(below_epsilon)) <= top_z_min <= (bottom_z_max + abs(above_epsilon))) and \
            (aabb_contains_aabb(aabb2d_from_aabb(top_aabb), aabb2d_from_aabb(bottom_aabb)))
 
 def is_placement(body, surface, **kwargs):
-    return is_placed_on_aabb(body, get_aabb(surface), **kwargs)
+    return is_placed_on_aabb(body, get_aabb(surface, **kwargs), **kwargs)
 
-def is_center_on_aabb(body, bottom_aabb, above_epsilon=1e-2, below_epsilon=0.0):
+def is_center_on_aabb(body, bottom_aabb, above_epsilon=1e-2, below_epsilon=0.0, **kwargs):
     # TODO: compute AABB in origin
     # TODO: use center of mass?
     assert (0 <= above_epsilon) and (0 <= below_epsilon)
-    center, extent = get_center_extent(body) # TODO: approximate_as_prism
+    center, extent = get_center_extent(body, **kwargs) # TODO: approximate_as_prism
     base_center = center - np.array([0, 0, extent[2]])/2
     top_z_min = base_center[2]
     bottom_z_max = bottom_aabb[1][2]
@@ -4454,17 +4455,17 @@ def is_center_on_aabb(body, bottom_aabb, above_epsilon=1e-2, below_epsilon=0.0):
            (aabb_contains_point(base_center[:2], aabb2d_from_aabb(bottom_aabb)))
 
 def is_center_stable(body, surface, **kwargs):
-    return is_center_on_aabb(body, get_aabb(surface), **kwargs)
+    return is_center_on_aabb(body, get_aabb(surface, **kwargs), **kwargs)
 
 def sample_placement_on_aabb(top_body, bottom_aabb, top_pose=unit_pose(),
-                             percent=1.0, max_attempts=50, epsilon=1e-3):
+                             percent=1.0, max_attempts=50, epsilon=1e-3, **kwargs):
     # TODO: transform into the coordinate system of the bottom
     # TODO: maybe I should instead just require that already in correct frame
     for _ in range(max_attempts):
         theta = np.random.uniform(*CIRCULAR_LIMITS)
         rotation = Euler(yaw=theta)
-        set_pose(top_body, multiply(Pose(euler=rotation), top_pose))
-        center, extent = get_center_extent(top_body)
+        set_pose(top_body, multiply(Pose(euler=rotation), top_pose), **kwargs)
+        center, extent = get_center_extent(top_body, **kwargs)
         lower = (np.array(bottom_aabb[0]) + percent*extent/2)[:2] # TODO: scale_aabb
         upper = (np.array(bottom_aabb[1]) - percent*extent/2)[:2]
         aabb = AABB(lower, upper)
@@ -4472,14 +4473,14 @@ def sample_placement_on_aabb(top_body, bottom_aabb, top_pose=unit_pose(),
             continue
         x, y = sample_aabb(aabb)
         z = (bottom_aabb[1] + extent/2.)[2] + epsilon
-        point = np.array([x, y, z]) + (get_point(top_body) - center)
+        point = np.array([x, y, z]) + (get_point(top_body, **kwargs) - center)
         pose = multiply(Pose(point, rotation), top_pose)
-        set_pose(top_body, pose)
+        set_pose(top_body, pose, **kwargs)
         return pose
     return None
 
 def sample_placement(top_body, bottom_body, bottom_link=None, **kwargs):
-    bottom_aabb = get_aabb(bottom_body, link=bottom_link)
+    bottom_aabb = get_aabb(bottom_body, link=bottom_link, **kwargs)
     return sample_placement_on_aabb(top_body, bottom_aabb, **kwargs)
 
 #####################################
@@ -4649,8 +4650,13 @@ class Attachment(object):
         return flatten_links(self.child) | flatten_links(self.parent, get_link_subtree(
             self.parent, self.parent_link))
     def assign(self):
+        print("Assigning attachment")
         parent_link_pose = get_link_pose(self.parent, self.parent_link, client=self.client)
         child_pose = body_from_end_effector(parent_link_pose, self.grasp_pose)
+
+        print("Parent link pose: "+str(parent_link_pose))
+        print("Grasp pose: "+str(self.grasp_pose))
+        print("Child pose: "+str(child_pose))
         set_pose(self.child, child_pose, client=self.client)
         return child_pose
     def apply_mapping(self, mapping):
@@ -5223,14 +5229,15 @@ def read_counter(debug):
 def read_button(debug):
     return read_counter(debug) % 2 == 1
 
-def add_text(text, position=unit_point(), color=BLACK, lifetime=None, parent=NULL_ID, parent_link=BASE_LINK):
-    return p.addUserDebugText(str(text), textPosition=position, textColorRGB=color[:3], # textSize=1,
+def add_text(text, position=unit_point(), color=BLACK, lifetime=None, parent=NULL_ID, parent_link=BASE_LINK, client=None, **kwargs):
+    client = client or DEFAULT_CLIENT
+    return client.addUserDebugText(str(text), textPosition=position, textColorRGB=color[:3], # textSize=1,
                               lifeTime=get_lifetime(lifetime), parentObjectUniqueId=parent, parentLinkIndex=parent_link)
 
-def add_line(start, end, color=BLACK, width=1, lifetime=None, parent=NULL_ID, parent_link=BASE_LINK):
+def add_line(start, end, color=BLACK, width=1, lifetime=None, parent=NULL_ID, parent_link=BASE_LINK, client=None, **kwargs):
     assert (len(start) == 3) and (len(end) == 3)
     #time.sleep(1e-3) # When too many lines are added within a short period of time, the following error can occur
-    return p.addUserDebugLine(start, end, lineColorRGB=color[:3], lineWidth=width,
+    return client.addUserDebugLine(start, end, lineColorRGB=color[:3], lineWidth=width,
                               lifeTime=get_lifetime(lifetime), parentObjectUniqueId=parent, parentLinkIndex=parent_link)
 
 draw_line = add_line
@@ -5252,10 +5259,10 @@ def remove_all_debug():
 
 def add_body_name(body, name=None, link=BASE_LINK, **kwargs):
     if name is None:
-        name = get_name(body)
-    with PoseSaver(body):
-        set_pose(body, unit_pose())
-        lower, upper = get_aabb(body, only_collision=False)
+        name = get_name(body, **kwargs)
+    with PoseSaver(body, **kwargs):
+        set_pose(body, unit_pose(), **kwargs)
+        lower, upper = get_aabb(body, only_collision=False, **kwargs)
         #position = (0, 0, upper[2])
         position = upper
         link_pose = get_link_pose(body, link, **kwargs)

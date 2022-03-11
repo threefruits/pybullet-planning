@@ -84,7 +84,7 @@ PR2_BASE_LINK = 'base_footprint'
 
 # Arm tool poses
 #TOOL_POSE = ([0.18, 0., 0.], [0., 0.70710678, 0., 0.70710678]) # l_gripper_palm_link
-TOOL_POSE = Pose(euler=Euler(pitch=np.pi/2)) # l_gripper_tool_frame (+x out of gripper arm)
+TOOL_POSE = Pose(euler=Euler(pitch=0)) # l_gripper_tool_frame (+x out of gripper arm)
 #TOOL_DIRECTION = [0., 0., 1.]
 
 #####################################

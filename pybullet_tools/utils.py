@@ -814,6 +814,9 @@ class State(object):
         self.attachments = dict(attachments)
     def propagate(self):
         # Derived values
+        print("Propagating!")
+        print(self.attachments)
+
         for relative_pose in self.attachments.values():
             # TODO: topological sort
             relative_pose.assign()
@@ -1777,7 +1780,7 @@ def rescale_interval(value, old_interval=UNIT_LIMITS, new_interval=UNIT_LIMITS):
     lower, upper = new_interval
     return convex_combination(lower, upper, w=normalize_interval(value, old_interval))
 
-def wrap_interval(value, interval=UNIT_LIMITS):
+def wrap_interval(value, interval=UNIT_LIMITS, **kwargs):
     lower, upper = interval
     if (lower == -INF) and (+INF == upper):
         return value
@@ -1805,11 +1808,11 @@ def circular_interval(lower=-PI): # [-np.pi, np.pi)
     return Interval(lower, lower + 2*PI)
 
 def wrap_angle(theta, **kwargs):
-    return wrap_interval(theta, interval=circular_interval(**kwargs))
+    return wrap_interval(theta, interval=circular_interval())
 
 def circular_difference(theta2, theta1, **kwargs):
-    interval = circular_interval(**kwargs)
-    #extent = get_interval_extent(interval) # TODO: combine with motion_planners
+    interval = circular_interval()
+    #extent = get_interval_extent   (interval) # TODO: combine with motion_planners
     extent = get_aabb_extent(interval)
     diff_interval = Interval(-extent/2, +extent/2)
     difference = wrap_interval(theta2 - theta1, interval=diff_interval)
@@ -3964,9 +3967,9 @@ def get_collision_fn(body, joints, obstacles=[], attachments=[], self_collisions
     # TODO: cluster together links that remain rigidly attached to reduce the number of checks
 
     def collision_fn(q, verbose=False):
-        if limits_fn(q):
-            # print("True1")
-            return True
+        # if limits_fn(q):
+        #     print("True1")
+        #     return True
         set_joint_positions(body, joints, q, **kwargs)
         for attachment in attachments:
             attachment.assign()
@@ -3979,7 +3982,7 @@ def get_collision_fn(body, joints, obstacles=[], attachments=[], self_collisions
             if (not use_aabb or aabb_overlap(get_moving_aabb(body), get_moving_aabb(body))) and \
                     pairwise_link_collision(body, link1, body, link2, **kwargs): #, **kwargs):
                 
-                # print("True2")
+                print("True2")
                 # print(get_link_name(body, link1, **kwargs), get_link_name(body, link2, **kwargs))
 
                 if verbose: print(body, link1, body, link2)
@@ -4001,7 +4004,7 @@ def get_collision_fn(body, joints, obstacles=[], attachments=[], self_collisions
         for body1, body2 in product(moving_bodies, obstacles):
             if (not use_aabb or aabb_overlap(get_moving_aabb(body1), get_obstacle_aabb(body2))) \
                     and pairwise_collision(body1, body2, **kwargs):                
-                # print("True 3")
+                print("True 3")
                 # print(get_body_name(body1, **kwargs), get_body_name(body2, **kwargs))
 
                 if verbose: print(body1, body2)

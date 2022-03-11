@@ -27,7 +27,7 @@ from contextlib import contextmanager
 from pybullet_utils.transformations import quaternion_from_matrix, unit_vector, euler_from_quaternion, quaternion_slerp, \
     random_quaternion, quaternion_about_axis
 
-DEFAULT_CLIENT = None
+DEFAULT_CLIENT = p
 
 def join_paths(*paths):
     return os.path.abspath(os.path.join(*paths))
@@ -1070,12 +1070,13 @@ def wait_for_interrupt(max_time=np.inf):
     finally:
         print()
 
-def set_preview(enable):
+def set_preview(enable, client=None):
+    client = client or DEFAULT_CLIENT
     # lightPosition, shadowMapResolution, shadowMapWorldSize
-    p.configureDebugVisualizer(p.COV_ENABLE_GUI, enable)
-    p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, enable)
-    p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, enable)
-    p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, enable)
+    client.configureDebugVisualizer(p.COV_ENABLE_GUI, enable)
+    client.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, enable)
+    client.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, enable)
+    client.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, enable)
     #p.configureDebugVisualizer(p.COV_ENABLE_WIREFRAME, True, physicsClientId=CLIENT)
 
 def synchronize_viewer():
@@ -2037,6 +2038,7 @@ JOINT_TYPES = {
 
 def get_num_joints(body, client = None, **kwargs):
     client = client or DEFAULT_CLIENT
+    print(body)
     return client.getNumJoints(body)
 
 def get_joints(body, **kwargs):
@@ -2315,6 +2317,8 @@ def get_link_parent(body, link, **kwargs):
 parent_link_from_joint = get_link_parent
 
 def link_from_name(body, name, **kwargs):
+    print("LINK FROM NAME BODT")
+    print(body)
     if name == get_base_name(body, **kwargs):
         return BASE_LINK
     for link in get_joints(body, **kwargs):

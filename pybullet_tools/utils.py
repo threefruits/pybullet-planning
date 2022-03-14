@@ -27,6 +27,8 @@ from contextlib import contextmanager
 from pybullet_utils.transformations import quaternion_from_matrix, unit_vector, euler_from_quaternion, quaternion_slerp, \
     random_quaternion, quaternion_about_axis
 
+from pybullet_utils.separating_axis import separating_axis_theorem
+
 DEFAULT_CLIENT = p
 
 def join_paths(*paths):
@@ -4106,7 +4108,11 @@ def plan_2d_joint_motion(oobb, lower_limits, upper_limits, start_conf, end_conf,
 
     def collision_fn(q):
         # TODO: separating axis theorem
-
+        for ooobb in obstacle_oobbs:
+            print(ooobb)
+        import sys
+        sys.exit()
+        
     if not check_initial_end(start_conf, end_conf, collision_fn):
         return None
 

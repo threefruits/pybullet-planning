@@ -4073,7 +4073,8 @@ def plan_joint_motion(body, joints, end_conf, obstacles=[], attachments=[],
 
 def plan_2d_joint_motion(oobb, lower_limits, upper_limits, start_conf, end_conf, obstacle_oobbs=[], attachments=[],
                          weights=None, resolutions=None, *kwargs):
-    
+    """ Assumed joint indices are x, y, theta"""
+
     assert len(joints) == len(end_conf)
     if (weights is None) and (resolutions is not None):
         weights = np.reciprocal(resolutions)
@@ -4083,14 +4084,29 @@ def plan_2d_joint_motion(oobb, lower_limits, upper_limits, start_conf, end_conf,
     def sample_fn():
         return tuple(next(sample_generator))
 
+    def difference_fn(q1, q2):
+        return [circular_difference(value2, value1) if circular else (value2 - value1) for value1, value2 in zip(q1, q2)]
+    
     def distance_fn(q1, q2):
-        
-    extend_fn = get_extend_fn(body, joints, resolutions=resolutions, **kwargs)
-    collision_fn = get_collision_fn(body, joints, obstacles, attachments, self_collisions, disabled_collisions,
-                                    custom_limits=custom_limits, max_distance=max_distance,
-                                    use_aabb=use_aabb, cache=cache, **kwargs)
+        diff = difference_fn(q1, q2)
+        return np.sqrt(np.dot(diff * diff))
 
-    start_conf = get_joint_positions(body, joints, **kwargs)
+    def refine_fn(q1, q2):
+        q = q1
+        for i in range(num_steps+1):
+            positions = (1. / (num_steps+1 - i)) * np.array(difference_fn(q2, q)) + q
+            #q = tuple(positions)
+            q = tuple(wrap_positions(body, joints, positions, **kwargs)) # TODO: possible issue with adjust path
+            yield q
+
+    def extend_fn(q1, q2):
+        #steps = int(np.max(np.abs(np.divide(difference_fn(q2, q1), resolutions))))
+        steps = int(np.linalg.norm(np.divide(difference_fn(q2, q1), resolutions), ord=norm))
+        return refine_fn(q1, q2)
+
+    def collision_fn(q):
+        # TODO: separating axis theorem
+
     if not check_initial_end(start_conf, end_conf, collision_fn):
         return None
 

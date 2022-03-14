@@ -814,9 +814,6 @@ class State(object):
         self.attachments = dict(attachments)
     def propagate(self):
         # Derived values
-        print("Propagating!")
-        print(self.attachments)
-
         for relative_pose in self.attachments.values():
             # TODO: topological sort
             relative_pose.assign()
@@ -874,7 +871,6 @@ def load_pybullet(filename, fixed_base=False, scale=1., client=None, **kwargs):
     with LockRenderer(client=client):
         flags = get_urdf_flags(**kwargs)
         if filename.endswith('.urdf'):
-            print("loading urdf")
             body = client.loadURDF(filename, useFixedBase=fixed_base, flags=flags, globalScaling=scale)
         elif filename.endswith('.sdf'):
             body = client.loadSDF(filename)
@@ -2041,7 +2037,6 @@ JOINT_TYPES = {
 
 def get_num_joints(body, client = None, **kwargs):
     client = client or DEFAULT_CLIENT
-    print(body)
     return client.getNumJoints(body)
 
 def get_joints(body, **kwargs):
@@ -2320,8 +2315,6 @@ def get_link_parent(body, link, **kwargs):
 parent_link_from_joint = get_link_parent
 
 def link_from_name(body, name, **kwargs):
-    print("LINK FROM NAME BODT")
-    print(body)
     if name == get_base_name(body, **kwargs):
         return BASE_LINK
     for link in get_joints(body, **kwargs):
@@ -3967,9 +3960,8 @@ def get_collision_fn(body, joints, obstacles=[], attachments=[], self_collisions
     # TODO: cluster together links that remain rigidly attached to reduce the number of checks
 
     def collision_fn(q, verbose=False):
-        # if limits_fn(q):
-        #     print("True1")
-        #     return True
+        if limits_fn(q):
+            return True
         set_joint_positions(body, joints, q, **kwargs)
         for attachment in attachments:
             attachment.assign()
@@ -3982,7 +3974,6 @@ def get_collision_fn(body, joints, obstacles=[], attachments=[], self_collisions
             if (not use_aabb or aabb_overlap(get_moving_aabb(body), get_moving_aabb(body))) and \
                     pairwise_link_collision(body, link1, body, link2, **kwargs): #, **kwargs):
                 
-                print("True2")
                 # print(get_link_name(body, link1, **kwargs), get_link_name(body, link2, **kwargs))
 
                 if verbose: print(body, link1, body, link2)
@@ -4004,7 +3995,6 @@ def get_collision_fn(body, joints, obstacles=[], attachments=[], self_collisions
         for body1, body2 in product(moving_bodies, obstacles):
             if (not use_aabb or aabb_overlap(get_moving_aabb(body1), get_obstacle_aabb(body2))) \
                     and pairwise_collision(body1, body2, **kwargs):                
-                print("True 3")
                 # print(get_body_name(body1, **kwargs), get_body_name(body2, **kwargs))
 
                 if verbose: print(body1, body2)
@@ -4065,6 +4055,36 @@ def plan_joint_motion(body, joints, end_conf, obstacles=[], attachments=[],
         weights = np.reciprocal(resolutions)
     sample_fn = get_sample_fn(body, joints, custom_limits=custom_limits, **kwargs)
     distance_fn = get_distance_fn(body, joints, weights=weights, **kwargs)
+    extend_fn = get_extend_fn(body, joints, resolutions=resolutions, **kwargs)
+    collision_fn = get_collision_fn(body, joints, obstacles, attachments, self_collisions, disabled_collisions,
+                                    custom_limits=custom_limits, max_distance=max_distance,
+                                    use_aabb=use_aabb, cache=cache, **kwargs)
+
+    start_conf = get_joint_positions(body, joints, **kwargs)
+    if not check_initial_end(start_conf, end_conf, collision_fn):
+        return None
+
+    if algorithm is None:
+        from motion_planners.rrt_connect import birrt
+        return birrt(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn, **kwargs)
+    return solve(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn,
+                 algorithm=algorithm, weights=weights, **kwargs)
+    #return plan_lazy_prm(start_conf, end_conf, sample_fn, extend_fn, collision_fn)
+
+def plan_2d_joint_motion(oobb, lower_limits, upper_limits, start_conf, end_conf, obstacle_oobbs=[], attachments=[],
+                         weights=None, resolutions=None, *kwargs):
+    
+    assert len(joints) == len(end_conf)
+    if (weights is None) and (resolutions is not None):
+        weights = np.reciprocal(resolutions)
+
+
+    sample_generator = interval_generator(, upper_limits, **kwargs)
+    def sample_fn():
+        return tuple(next(sample_generator))
+
+    def distance_fn(q1, q2):
+        
     extend_fn = get_extend_fn(body, joints, resolutions=resolutions, **kwargs)
     collision_fn = get_collision_fn(body, joints, obstacles, attachments, self_collisions, disabled_collisions,
                                     custom_limits=custom_limits, max_distance=max_distance,
@@ -4657,13 +4677,8 @@ class Attachment(object):
         return flatten_links(self.child) | flatten_links(self.parent, get_link_subtree(
             self.parent, self.parent_link))
     def assign(self):
-        print("Assigning attachment")
         parent_link_pose = get_link_pose(self.parent, self.parent_link, client=self.client)
         child_pose = body_from_end_effector(parent_link_pose, self.grasp_pose)
-
-        print("Parent link pose: "+str(parent_link_pose))
-        print("Grasp pose: "+str(self.grasp_pose))
-        print("Child pose: "+str(child_pose))
         set_pose(self.child, child_pose, client=self.client)
         return child_pose
     def apply_mapping(self, mapping):

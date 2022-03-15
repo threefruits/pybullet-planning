@@ -27,7 +27,7 @@ from contextlib import contextmanager
 from pybullet_utils.transformations import quaternion_from_matrix, unit_vector, euler_from_quaternion, quaternion_slerp, \
     random_quaternion, quaternion_about_axis
 
-from pybullet_utils.separating_axis import separating_axis_theorem
+from pybullet_tools.separating_axis import separating_axis_theorem
 
 DEFAULT_CLIENT = p
 
@@ -4073,52 +4073,60 @@ def plan_joint_motion(body, joints, end_conf, obstacles=[], attachments=[],
                  algorithm=algorithm, weights=weights, **kwargs)
     #return plan_lazy_prm(start_conf, end_conf, sample_fn, extend_fn, collision_fn)
 
-def plan_2d_joint_motion(oobb, lower_limits, upper_limits, start_conf, end_conf, obstacle_oobbs=[], attachments=[],
-                         weights=None, resolutions=None, *kwargs):
+def plan_2d_joint_motion(aabb, lower_limits, upper_limits, start_conf, end_conf, obstacle_aabb=[], attachments=[],
+                         weights=None, resolutions=None, algorithm=None, **kwargs):
     """ Assumed joint indices are x, y, theta"""
-
-    assert len(joints) == len(end_conf)
+    print("plan_2d_joint_motion")
     if (weights is None) and (resolutions is not None):
         weights = np.reciprocal(resolutions)
 
+    sample_generator = interval_generator(lower_limits, upper_limits, **kwargs)
+    circular_joints = [False, False, True]
 
-    sample_generator = interval_generator(, upper_limits, **kwargs)
     def sample_fn():
         return tuple(next(sample_generator))
 
-    def difference_fn(q1, q2):
-        return [circular_difference(value2, value1) if circular else (value2 - value1) for value1, value2 in zip(q1, q2)]
+    def difference_fn(q1, q2, **kwargs):
+        
+        return [circular_difference(value2, value1) if circular else (value2 - value1) for value1, value2, circular in zip(q1, q2, circular_joints)]
     
-    def distance_fn(q1, q2):
+    def distance_fn(q1, q2, **kwargs):
         diff = difference_fn(q1, q2)
-        return np.sqrt(np.dot(diff * diff))
+        return np.linalg.norm(diff, ord=2)
 
-    def refine_fn(q1, q2):
+    def refine_fn(q1, q2, num_steps, **kwargs):
         q = q1
         for i in range(num_steps+1):
             positions = (1. / (num_steps+1 - i)) * np.array(difference_fn(q2, q)) + q
             #q = tuple(positions)
-            q = tuple(wrap_positions(body, joints, positions, **kwargs)) # TODO: possible issue with adjust path
+            q = [position if not circular_joints[pi] else wrap_angle(position) for (pi, position) in enumerate(positions)]
             yield q
 
-    def extend_fn(q1, q2):
+    def extend_fn(q1, q2, **kwargs):
         #steps = int(np.max(np.abs(np.divide(difference_fn(q2, q1), resolutions))))
-        steps = int(np.linalg.norm(np.divide(difference_fn(q2, q1), resolutions), ord=norm))
-        return refine_fn(q1, q2)
+        steps = int(np.linalg.norm(np.divide(difference_fn(q2, q1), resolutions), ord=2))
+        return refine_fn(q1, q2, steps)
 
-    def collision_fn(q):
+    def collision_fn(q, **kwargs):
         # TODO: separating axis theorem
-        for ooobb in obstacle_oobbs:
-            print(ooobb)
-        import sys
-        sys.exit()
+        return False
         
     if not check_initial_end(start_conf, end_conf, collision_fn):
+        print("INITIAL IN COLLISION")
         return None
 
     if algorithm is None:
+        print("start conf")
+        print(start_conf)
+
+        print("end conf")
+        print(end_conf)
+
         from motion_planners.rrt_connect import birrt
         return birrt(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn, **kwargs)
+
+
+   
     return solve(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn,
                  algorithm=algorithm, weights=weights, **kwargs)
     #return plan_lazy_prm(start_conf, end_conf, sample_fn, extend_fn, collision_fn)

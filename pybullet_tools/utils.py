@@ -4073,10 +4073,29 @@ def plan_joint_motion(body, joints, end_conf, obstacles=[], attachments=[],
                  algorithm=algorithm, weights=weights, **kwargs)
     #return plan_lazy_prm(start_conf, end_conf, sample_fn, extend_fn, collision_fn)
 
-def plan_2d_joint_motion(aabb, lower_limits, upper_limits, start_conf, end_conf, obstacle_aabb=[], attachments=[],
+def plan_2d_joint_motion(robot_aabb, lower_limits, upper_limits, start_conf, end_conf, obstacle_oobbs=[], attachments=[],
                          weights=None, resolutions=None, algorithm=None, **kwargs):
     """ Assumed joint indices are x, y, theta"""
-    print("plan_2d_joint_motion")
+
+    print("start conf")
+    print(start_conf)
+    print("end conf")
+    print(end_conf)
+
+    def oobb_flat_vertices(oobb):
+        diff_thresh = 0.001
+        verts = get_oobb_vertices(oobb)
+        verts2d = []
+        for vert in verts:
+            unique = True
+            for vert2d in verts2d:
+                if(np.linalg.norm(np.array(vert[:2])-np.array(vert2d[:2])) < diff_thresh):
+                    unique=False
+            if(unique):
+                verts2d.append(vert[:2])
+        assert len(verts2d) == 4
+        return verts2d
+
     if (weights is None) and (resolutions is not None):
         weights = np.reciprocal(resolutions)
 
@@ -4086,7 +4105,7 @@ def plan_2d_joint_motion(aabb, lower_limits, upper_limits, start_conf, end_conf,
     def sample_fn():
         return tuple(next(sample_generator))
 
-    def difference_fn(q1, q2, **kwargs):
+    def difference_fn(q2, q1, **kwargs):
         
         return [circular_difference(value2, value1) if circular else (value2 - value1) for value1, value2, circular in zip(q1, q2, circular_joints)]
     
@@ -4096,8 +4115,9 @@ def plan_2d_joint_motion(aabb, lower_limits, upper_limits, start_conf, end_conf,
 
     def refine_fn(q1, q2, num_steps, **kwargs):
         q = q1
-        for i in range(num_steps+1):
-            positions = (1. / (num_steps+1 - i)) * np.array(difference_fn(q2, q)) + q
+        num_steps = num_steps+1
+        for i in range(num_steps):
+            positions = (1. / (num_steps - i)) * np.array(difference_fn(q2, q)) + q
             #q = tuple(positions)
             q = [position if not circular_joints[pi] else wrap_angle(position) for (pi, position) in enumerate(positions)]
             yield q
@@ -4109,23 +4129,21 @@ def plan_2d_joint_motion(aabb, lower_limits, upper_limits, start_conf, end_conf,
 
     def collision_fn(q, **kwargs):
         # TODO: separating axis theorem
-        return False
+        new_oobb = oobb_flat_vertices(OOBB(aabb=robot_aabb, pose=Pose(point=Point(x=q[0], y=q[1]), euler=Euler(yaw=q[2]))))
+        oobb_flats = [oobb_flat_vertices(o) for o in obstacle_oobbs]
+        flat_collisions = []
+        for oobb_flat in oobb_flats:
+            collision = separating_axis_theorem(new_oobb, oobb_flat)
+            flat_collisions.append(collision)
+        return any(flat_collisions)
         
     if not check_initial_end(start_conf, end_conf, collision_fn):
-        print("INITIAL IN COLLISION")
         return None
 
     if algorithm is None:
-        print("start conf")
-        print(start_conf)
-
-        print("end conf")
-        print(end_conf)
-
         from motion_planners.rrt_connect import birrt
-        return birrt(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn, **kwargs)
-
-
+        plan = birrt(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn, **kwargs)
+        return plan
    
     return solve(start_conf, end_conf, distance_fn, sample_fn, extend_fn, collision_fn,
                  algorithm=algorithm, weights=weights, **kwargs)
@@ -4552,10 +4570,29 @@ def sample_reachable_base(robot, point, reachable_range=(0.25, 1.0)):
     #set_base_values(robot, base_values)
     return base_values
 
+def sample_directed_reachable_base(robot, point, reachable_range=(0.25, 1.0)):
+    radius = np.random.uniform(*reachable_range)
+    x, y = radius*unit_from_theta(np.random.uniform(-np.pi, np.pi)) + point[:2]
+    yaw = np.arctan2(point[1]-y, point[0]-x)
+    base_values = (x, y, yaw)
+    #set_base_values(robot, base_values)
+    return base_values
+
+
 def uniform_pose_generator(robot, gripper_pose, **kwargs):
     point = point_from_pose(gripper_pose)
     while True:
         base_values = sample_reachable_base(robot, point, **kwargs)
+        if base_values is None:
+            break
+        yield base_values
+        #set_base_values(robot, base_values)
+        #yield get_pose(robot)
+
+def directed_pose_generator(robot, gripper_pose, **kwargs):
+    point = point_from_pose(gripper_pose)
+    while True:
+        base_values = sample_directed_reachable_base(robot, point, **kwargs)
         if base_values is None:
             break
         yield base_values

@@ -6026,17 +6026,17 @@ def directed_pose_generator(robot, gripper_pose, **kwargs):
         # yield get_pose(robot)
 
 
-def custom_limits_from_base_limits(robot, base_limits, yaw_limit=None):
+def custom_limits_from_base_limits(robot, base_limits, yaw_limit=None, **kwargs):
     # TODO: unify with SS-Replan
     x_limits, y_limits = zip(*base_limits)
     custom_limits = {
-        joint_from_name(robot, "x"): x_limits,
-        joint_from_name(robot, "y"): y_limits,
+        joint_from_name(robot, "x", **kwargs): x_limits,
+        joint_from_name(robot, "y", **kwargs): y_limits,
     }
     if yaw_limit is not None:
         custom_limits.update(
             {
-                joint_from_name(robot, "theta"): yaw_limit,
+                joint_from_name(robot, "theta", **kwargs): yaw_limit,
             }
         )
     return custom_limits

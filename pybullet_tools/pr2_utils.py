@@ -351,24 +351,24 @@ def get_groups():
     return sorted(PR2_GROUPS)
 
 
-def get_group_joints(robot, group):
-    return joints_from_names(robot, PR2_GROUPS[group])
+def get_group_joints(robot, group, **kwargs):
+    return joints_from_names(robot, PR2_GROUPS[group], **kwargs)
 
 
-def get_group_conf(robot, group):
-    return get_joint_positions(robot, get_group_joints(robot, group))
+def get_group_conf(robot, group, **kwargs):
+    return get_joint_positions(robot, get_group_joints(robot, group, **kwargs), **kwargs)
 
 
 # get_group_position = get_group_conf
 
 
-def set_group_conf(robot, group, positions):
-    set_joint_positions(robot, get_group_joints(robot, group), positions)
+def set_group_conf(robot, group, positions, **kwargs):
+    set_joint_positions(robot, get_group_joints(robot, group, **kwargs), positions, **kwargs)
 
 
-def set_group_positions(robot, group_positions):
+def set_group_positions(robot, group_positions, **kwargs):
     for group, positions in group_positions.items():
-        set_group_conf(robot, group, positions)
+        set_group_conf(robot, group, positions, **kwargs)
 
 
 def get_group_positions(robot):
@@ -382,8 +382,8 @@ def get_group_positions(robot):
 # End-effectors
 
 
-def get_arm_joints(robot, arm):
-    return get_group_joints(robot, arm_from_arm(arm))
+def get_arm_joints(robot, arm, **kwargs):
+    return get_group_joints(robot, arm_from_arm(arm), **kwargs)
 
 
 def get_torso_arm_joints(robot, arm):
@@ -410,8 +410,8 @@ def get_gripper_link(robot, arm):
 #    return pose
 
 
-def get_gripper_joints(robot, arm):
-    return get_group_joints(robot, gripper_from_arm(arm))
+def get_gripper_joints(robot, arm, **kwargs):
+    return get_group_joints(robot, gripper_from_arm(arm), **kwargs)
 
 
 def set_gripper_position(robot, arm, position):
@@ -419,14 +419,14 @@ def set_gripper_position(robot, arm, position):
     set_joint_positions(robot, gripper_joints, [position] * len(gripper_joints))
 
 
-def open_arm(robot, arm):  # These are mirrored on the pr2
-    for joint in get_gripper_joints(robot, arm):
-        set_joint_position(robot, joint, get_max_limit(robot, joint))
+def open_arm(robot, arm, **kwargs):  # These are mirrored on the pr2
+    for joint in get_gripper_joints(robot, arm, **kwargs):
+        set_joint_position(robot, joint, get_max_limit(robot, joint, **kwargs), **kwargs)
 
 
-def close_arm(robot, arm):
-    for joint in get_gripper_joints(robot, arm):
-        set_joint_position(robot, joint, get_min_limit(robot, joint))
+def close_arm(robot, arm, **kwargs):
+    for joint in get_gripper_joints(robot, arm, **kwargs):
+        set_joint_position(robot, joint, get_min_limit(robot, joint, **kwargs), **kwargs)
 
 
 # TODO: use these names

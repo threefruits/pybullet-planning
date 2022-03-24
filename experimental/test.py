@@ -2,28 +2,52 @@ from __future__ import print_function
 
 import argparse
 import math
+
 import numpy as np
 import pybullet as p
-
-from pybullet_tools.pr2_utils import TOP_HOLDING_LEFT_ARM, LEFT_ARM_LINK, LEFT_JOINT_NAMES, RIGHT_JOINT_NAMES, TORSO_JOINT_NAME, \
-    REST_RIGHT_ARM, \
-    load_inverse_reachability
 from create_ir_database import create_inverse_reachability
-from pybullet_tools.utils import get_joint_type, is_movable, get_joint_limits, create_box, get_max_velocity, get_num_joints, \
-    get_movable_joints, get_joint_name, get_body_name, get_link_pose, joint_from_name, link_from_name, set_joint_position, \
-    get_joint_position, \
-    get_body_names, get_joint_names, get_colliding_links, self_collision, set_joint_positions, get_joint_positions, \
-    add_data_path, connect
+from pybullet_tools.pr2_utils import (
+    LEFT_ARM_LINK,
+    LEFT_JOINT_NAMES,
+    REST_RIGHT_ARM,
+    RIGHT_JOINT_NAMES,
+    TOP_HOLDING_LEFT_ARM,
+    TORSO_JOINT_NAME,
+    load_inverse_reachability,
+)
+from pybullet_tools.utils import (
+    add_data_path,
+    connect,
+    create_box,
+    get_body_name,
+    get_body_names,
+    get_colliding_links,
+    get_joint_limits,
+    get_joint_name,
+    get_joint_names,
+    get_joint_position,
+    get_joint_positions,
+    get_joint_type,
+    get_link_pose,
+    get_max_velocity,
+    get_movable_joints,
+    get_num_joints,
+    is_movable,
+    joint_from_name,
+    link_from_name,
+    self_collision,
+    set_joint_position,
+    set_joint_positions,
+)
 
+# REST_LEFT_ARM = [2.13539289, 1.29629967, 3.74999698, -0.15000005, 10000., -0.10000004, 10000.]
 
-#REST_LEFT_ARM = [2.13539289, 1.29629967, 3.74999698, -0.15000005, 10000., -0.10000004, 10000.]
-
-#LEFT_ARM_JOINTS = [15,16,17,18,19,20,21]
-#RIGHT_ARM_JOINTS = [27,28,29,30,31,32,33]
-#HEAD_JOINTS = [13,14]
+# LEFT_ARM_JOINTS = [15,16,17,18,19,20,21]
+# RIGHT_ARM_JOINTS = [27,28,29,30,31,32,33]
+# HEAD_JOINTS = [13,14]
 # openrave-robot.py robots/pr2-beta-static.zae --info manipulators
 
-#REVOLUTE_LIMITS = -10000, 10000
+# REVOLUTE_LIMITS = -10000, 10000
 
 # https://docs.google.com/document/d/10sXEhzFRSnvFcl3XxNGhnD4N2SedqwdAvK3dsihxVUA/edit#
 
@@ -44,34 +68,33 @@ from pybullet_tools.utils import get_joint_type, is_movable, get_joint_limits, c
 # https://github.com/rdiankov/openrave/blob/98b6111423dc7e5fe695dcb8654601b8d87b2a82/src/libopenrave/kinbody.cpp
 # https://github.com/rdiankov/openrave/blob/98b6111423dc7e5fe695dcb8654601b8d87b2a82/src/libopenrave/kinbody.cpp
 
+
 def main():
     # TODO: teleporting kuka arm
     parser = argparse.ArgumentParser()  # Automatically includes help
-    parser.add_argument('-viewer', action='store_true', help='enable viewer.')
+    parser.add_argument("-viewer", action="store_true", help="enable viewer.")
     args = parser.parse_args()
 
     client = connect(use_gui=args.viewer)
     add_data_path()
 
-    #planeId = p.loadURDF("plane.urdf")
+    # planeId = p.loadURDF("plane.urdf")
     table = p.loadURDF("table/table.urdf", 0, 0, 0, 0, 0, 0.707107, 0.707107)
-    box = create_box(.07, .05, .15)
-
+    box = create_box(0.07, 0.05, 0.15)
 
     # boxId = p.loadURDF("r2d2.urdf",cubeStartPos, cubeStartOrientation)
-    #pr2 = p.loadURDF("pr2_description/pr2.urdf")
+    # pr2 = p.loadURDF("pr2_description/pr2.urdf")
     pr2 = p.loadURDF("pr2_description/pr2_fixed_torso.urdf")
-    #pr2 = p.loadURDF("/Users/caelan/Programs/Installation/pr2_drake/pr2_local2.urdf",)
-                     #useFixedBase=0,)
-                     #flags=p.URDF_USE_SELF_COLLISION)
-                     #flags=p.URDF_USE_SELF_COLLISION_EXCLUDE_PARENT)
-                     #flags=p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
-    #pr2 = p.loadURDF("pr2_drake/urdf/pr2_simplified.urdf", useFixedBase=False)
+    # pr2 = p.loadURDF("/Users/caelan/Programs/Installation/pr2_drake/pr2_local2.urdf",)
+    # useFixedBase=0,)
+    # flags=p.URDF_USE_SELF_COLLISION)
+    # flags=p.URDF_USE_SELF_COLLISION_EXCLUDE_PARENT)
+    # flags=p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
+    # pr2 = p.loadURDF("pr2_drake/urdf/pr2_simplified.urdf", useFixedBase=False)
     initially_colliding = get_colliding_links(pr2)
     print(len(initially_colliding))
     origin = (0, 0, 0)
     print(p.getNumConstraints())
-
 
     # TODO: no way of controlling the base position by itself
     # TODO: PR2 seems to collide with itself frequently
@@ -93,12 +116,12 @@ def main():
     #    p.stepSimulation()
     #    time.sleep(1./240.)
 
-    #print(get_joint_names(pr2))
+    # print(get_joint_names(pr2))
     print([get_joint_name(pr2, joint) for joint in get_movable_joints(pr2)])
     print(get_joint_position(pr2, joint_from_name(pr2, TORSO_JOINT_NAME)))
-    #open_gripper(pr2, joint_from_name(pr2, LEFT_GRIPPER))
-    #print(get_joint_limits(pr2, joint_from_name(pr2, LEFT_GRIPPER)))
-    #print(get_joint_position(pr2, joint_from_name(pr2, LEFT_GRIPPER)))
+    # open_gripper(pr2, joint_from_name(pr2, LEFT_GRIPPER))
+    # print(get_joint_limits(pr2, joint_from_name(pr2, LEFT_GRIPPER)))
+    # print(get_joint_position(pr2, joint_from_name(pr2, LEFT_GRIPPER)))
     print(self_collision(pr2))
 
     """
@@ -122,22 +145,27 @@ def main():
     """
 
     # TODO: would be good if we could set the joint directly
-    print(set_joint_position(pr2, joint_from_name(pr2, TORSO_JOINT_NAME), 0.2))  # Updates automatically
+    print(
+        set_joint_position(pr2, joint_from_name(pr2, TORSO_JOINT_NAME), 0.2)
+    )  # Updates automatically
     print(get_joint_position(pr2, joint_from_name(pr2, TORSO_JOINT_NAME)))
-    #return
+    # return
 
     left_joints = [joint_from_name(pr2, name) for name in LEFT_JOINT_NAMES]
     right_joints = [joint_from_name(pr2, name) for name in RIGHT_JOINT_NAMES]
-    print(set_joint_positions(pr2, left_joints, TOP_HOLDING_LEFT_ARM)) # TOP_HOLDING_LEFT_ARM | SIDE_HOLDING_LEFT_ARM
-    print(set_joint_positions(pr2, right_joints, REST_RIGHT_ARM)) # TOP_HOLDING_RIGHT_ARM | REST_RIGHT_ARM
+    print(
+        set_joint_positions(pr2, left_joints, TOP_HOLDING_LEFT_ARM)
+    )  # TOP_HOLDING_LEFT_ARM | SIDE_HOLDING_LEFT_ARM
+    print(
+        set_joint_positions(pr2, right_joints, REST_RIGHT_ARM)
+    )  # TOP_HOLDING_RIGHT_ARM | REST_RIGHT_ARM
 
     print(get_body_name(pr2))
     print(get_body_names())
     # print(p.getBodyUniqueId(pr2))
     print(get_joint_names(pr2))
 
-
-    #for joint, value in zip(LEFT_ARM_JOINTS, REST_LEFT_ARM):
+    # for joint, value in zip(LEFT_ARM_JOINTS, REST_LEFT_ARM):
     #    set_joint_position(pr2, joint, value)
     # for name, value in zip(LEFT_JOINT_NAMES, REST_LEFT_ARM):
     #     joint = joint_from_name(pr2, name)
@@ -174,10 +202,8 @@ def main():
     #         set_joint_position(pr2, joint, value)
     #     user_input('Continue?')
 
-
-
-    #start = (-2, -2, 0)
-    #set_base_values(pr2, start)
+    # start = (-2, -2, 0)
+    # set_base_values(pr2, start)
     # #start = get_base_values(pr2)
     # goal = (2, 2, 0)
     # p.addUserDebugLine(start, goal, lineColorRGB=(1, 1, 0)) # addUserDebugText
@@ -191,8 +217,6 @@ def main():
     # for bq in path:
     #     set_base_values(pr2, bq)
     #     user_input('Continue?')
-
-
 
     # left_joints = [joint_from_name(pr2, name) for name in LEFT_JOINT_NAMES]
     # for joint in left_joints:
@@ -211,19 +235,28 @@ def main():
     #     set_joint_positions(pr2, left_joints, q)
     #     user_input('Continue?')
 
-    print(p.JOINT_REVOLUTE, p.JOINT_PRISMATIC, p.JOINT_FIXED, p.JOINT_POINT2POINT, p.JOINT_GEAR) # 0 1 4 5 6
+    print(
+        p.JOINT_REVOLUTE,
+        p.JOINT_PRISMATIC,
+        p.JOINT_FIXED,
+        p.JOINT_POINT2POINT,
+        p.JOINT_GEAR,
+    )  # 0 1 4 5 6
 
     movable_joints = get_movable_joints(pr2)
     print(len(movable_joints))
     for joint in range(get_num_joints(pr2)):
         if is_movable(pr2, joint):
-            print(joint, get_joint_name(pr2, joint), get_joint_type(pr2, joint), get_joint_limits(pr2, joint))
+            print(
+                joint,
+                get_joint_name(pr2, joint),
+                get_joint_type(pr2, joint),
+                get_joint_limits(pr2, joint),
+            )
 
-    #joints = [joint_from_name(pr2, name) for name in LEFT_JOINT_NAMES]
-    #set_joint_positions(pr2, joints, sample_joints(pr2, joints))
-    #print(get_joint_positions(pr2, joints)) # Need to print before the display updates?
-
-
+    # joints = [joint_from_name(pr2, name) for name in LEFT_JOINT_NAMES]
+    # set_joint_positions(pr2, joints, sample_joints(pr2, joints))
+    # print(get_joint_positions(pr2, joints)) # Need to print before the display updates?
 
     # set_base_values(pr2, (1, -1, -np.pi/4))
     # movable_joints = get_movable_joints(pr2)
@@ -262,7 +295,7 @@ def main():
     torso = joint_from_name(pr2, TORSO_JOINT_NAME)
     torso_point, torso_quat = get_link_pose(pr2, torso)
 
-    #torso_constraint = p.createConstraint(pr2, torso, -1, -1,
+    # torso_constraint = p.createConstraint(pr2, torso, -1, -1,
     #                   p.JOINT_FIXED, jointAxis=[0] * 3,  # JOINT_FIXED
     #                   parentFramePosition=torso_point,
     #                   childFramePosition=torso_quat)
@@ -271,77 +304,94 @@ def main():
     ir_database = load_inverse_reachability()
     print(len(ir_database))
 
-
     return
-
 
     link = link_from_name(pr2, LEFT_ARM_LINK)
     point, quat = get_link_pose(pr2, link)
     print(point, quat)
     p.addUserDebugLine(origin, point, lineColorRGB=(1, 1, 0))  # addUserDebugText
-    user_input('Continue?')
+    user_input("Continue?")
 
     current_conf = get_joint_positions(pr2, movable_joints)
 
-    #ik_conf = p.calculateInverseKinematics(pr2, link, point)
-    #ik_conf = p.calculateInverseKinematics(pr2, link, point, quat)
+    # ik_conf = p.calculateInverseKinematics(pr2, link, point)
+    # ik_conf = p.calculateInverseKinematics(pr2, link, point, quat)
 
     min_limits = [get_joint_limits(pr2, joint)[0] for joint in movable_joints]
     max_limits = [get_joint_limits(pr2, joint)[1] for joint in movable_joints]
-    max_velocities = [get_max_velocity(pr2, joint) for joint in movable_joints] # Range of Jacobian
+    max_velocities = [
+        get_max_velocity(pr2, joint) for joint in movable_joints
+    ]  # Range of Jacobian
     print(min_limits)
     print(max_limits)
     print(max_velocities)
-    ik_conf = p.calculateInverseKinematics(pr2, link, point, quat, lowerLimits=min_limits,
-                                           upperLimits=max_limits, jointRanges=max_velocities, restPoses=current_conf)
-
+    ik_conf = p.calculateInverseKinematics(
+        pr2,
+        link,
+        point,
+        quat,
+        lowerLimits=min_limits,
+        upperLimits=max_limits,
+        jointRanges=max_velocities,
+        restPoses=current_conf,
+    )
 
     value_from_joint = dict(zip(movable_joints, ik_conf))
     print([value_from_joint[joint] for joint in joints])
 
-    #print(len(ik_conf), ik_conf)
+    # print(len(ik_conf), ik_conf)
     set_joint_positions(pr2, movable_joints, ik_conf)
-    #print(len(movable_joints), get_joint_positions(pr2, movable_joints))
+    # print(len(movable_joints), get_joint_positions(pr2, movable_joints))
     print(get_joint_positions(pr2, joints))
 
-    user_input('Finish?')
+    user_input("Finish?")
 
     p.disconnect()
 
     # createConstraint
+
 
 def get_contact_links(contact):
     _, body1, body2, link1, link2 = contact[:5]
     distance = contact[8]
     return (body1, link1), (body2, link2), distance
 
+
 def get_colliding_links(body, max_distance=-0.001):
-    contacts = p.getClosestPoints(body, body, max_distance) # -1 is the base
+    contacts = p.getClosestPoints(body, body, max_distance)  # -1 is the base
     colliding = set()
     for (_, link1), (_, link2), _ in map(get_contact_links, contacts):
         colliding.update([(link1, link2), (link2, link1)])
     return colliding
 
+
 def get_safe_colliding_links(body):
     return get_adjacent_links(body) | get_fixed_links(body)
 
+
 def self_collision(body, max_distance=0):
     # GetNonAdjacentLinks | GetAdjacentLinks
-    contacts = p.getClosestPoints(body, body, max_distance) # -1 is the base
-    #print(contacts)
+    contacts = p.getClosestPoints(body, body, max_distance)  # -1 is the base
+    # print(contacts)
     adjacent = get_safe_colliding_links(body)
-    #print(fixed)
-    #print(sorted(get_adjacent_links(body)))
-    colliding_not_adjacent = {(link1, link2, distance) for (_, link1), (_, link2), distance in map(get_contact_links, contacts)
-           if (link1 != link2) and ((link1, link2) not in adjacent) and ((link2, link1) not in adjacent)}
+    # print(fixed)
+    # print(sorted(get_adjacent_links(body)))
+    colliding_not_adjacent = {
+        (link1, link2, distance)
+        for (_, link1), (_, link2), distance in map(get_contact_links, contacts)
+        if (link1 != link2)
+        and ((link1, link2) not in adjacent)
+        and ((link2, link1) not in adjacent)
+    }
     colliding_not_adjacent = list(colliding_not_adjacent)
-    #print(colliding_not_adjacent)
-    #print([(get_link_name(body, link1), get_link_name(body, link2), distance)
+    # print(colliding_not_adjacent)
+    # print([(get_link_name(body, link1), get_link_name(body, link2), distance)
     #       for (link1, link2, distance) in colliding_not_adjacent])
     # TODO: could compute initially colliding links and discount those collisions
     return len(colliding_not_adjacent) != 0
 
-#def filtered_self_collision(body, acceptable=tuple(), max_distance=0):
+
+# def filtered_self_collision(body, acceptable=tuple(), max_distance=0):
 #    contacts = p.getClosestPoints(body, body, max_distance) # -1 is the base
 #    for (_, link1), (_, link2), _ in map(get_contact_links, contacts):
 #        if (link1 != link2) and (link1, link2) not in acceptable:
@@ -367,53 +417,66 @@ if data.linkIndex != BASE_LINK:
     print(pose)
 """
 
-def experimental_inverse_kinematics(robot, link, pose,
-                       null_space=False, max_iterations=200, tolerance=1e-3):
+
+def experimental_inverse_kinematics(
+    robot, link, pose, null_space=False, max_iterations=200, tolerance=1e-3
+):
     (point, quat) = pose
     # https://github.com/bulletphysics/bullet3/blob/389d7aaa798e5564028ce75091a3eac6a5f76ea8/examples/SharedMemory/PhysicsClientC_API.cpp
     # https://github.com/bulletphysics/bullet3/blob/c1ba04a5809f7831fa2dee684d6747951a5da602/examples/pybullet/examples/inverse_kinematics_husky_kuka.py
-    joints = get_joints(robot) # Need to have all joints (although only movable returned)
+    joints = get_joints(
+        robot
+    )  # Need to have all joints (although only movable returned)
     movable_joints = get_movable_joints(robot)
     current_conf = get_joint_positions(robot, joints)
 
     # TODO: sample other values for the arm joints as the reference conf
     min_limits = [get_joint_limits(robot, joint)[0] for joint in joints]
     max_limits = [get_joint_limits(robot, joint)[1] for joint in joints]
-    #min_limits = current_conf
-    #max_limits = current_conf
-    #max_velocities = [get_max_velocity(robot, joint) for joint in joints] # Range of Jacobian
-    max_velocities = [10000]*len(joints)
+    # min_limits = current_conf
+    # max_limits = current_conf
+    # max_velocities = [get_max_velocity(robot, joint) for joint in joints] # Range of Jacobian
+    max_velocities = [10000] * len(joints)
     # TODO: cannot have zero velocities
     # TODO: larger definitely better for velocities
-    #damping = tuple(0.1*np.ones(len(joints)))
+    # damping = tuple(0.1*np.ones(len(joints)))
 
-    #t0 = time.time()
-    #kinematic_conf = get_joint_positions(robot, movable_joints)
-    for iterations in range(max_iterations): # 0.000863273143768 / iteration
+    # t0 = time.time()
+    # kinematic_conf = get_joint_positions(robot, movable_joints)
+    for iterations in range(max_iterations):  # 0.000863273143768 / iteration
         # TODO: return none if no progress
         if null_space:
-            kinematic_conf = p.calculateInverseKinematics(robot, link, point, quat,
-                                                          lowerLimits=min_limits, upperLimits=max_limits,
-                                                          jointRanges=max_velocities, restPoses=current_conf,
-                                                          #jointDamping=damping,
-                                                         )
+            kinematic_conf = p.calculateInverseKinematics(
+                robot,
+                link,
+                point,
+                quat,
+                lowerLimits=min_limits,
+                upperLimits=max_limits,
+                jointRanges=max_velocities,
+                restPoses=current_conf,
+                # jointDamping=damping,
+            )
         else:
             kinematic_conf = p.calculateInverseKinematics(robot, link, point, quat)
         if (kinematic_conf is None) or any(map(math.isnan, kinematic_conf)):
             return None
         set_joint_positions(robot, movable_joints, kinematic_conf)
         link_point, link_quat = get_link_pose(robot, link)
-        if np.allclose(link_point, point, atol=tolerance) and np.allclose(link_quat, quat, atol=tolerance):
-            #print(iterations)
+        if np.allclose(link_point, point, atol=tolerance) and np.allclose(
+            link_quat, quat, atol=tolerance
+        ):
+            # print(iterations)
             break
     else:
         return None
     if violates_limits(robot, movable_joints, kinematic_conf):
         return None
-    #total_time = (time.time() - t0)
-    #print(total_time)
-    #print((time.time() - t0)/max_iterations)
+    # total_time = (time.time() - t0)
+    # print(total_time)
+    # print((time.time() - t0)/max_iterations)
     return kinematic_conf
+
 
 """
 def clone_body_editor(body, collision=True, visual=True):
@@ -583,5 +646,5 @@ def body_from_editor(editor, collision=True, visual=True):
 """
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

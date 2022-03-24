@@ -57,8 +57,10 @@ def vertices_to_edges(vertices):
     """
     :return: A list of the edges of the vertices as vectors
     """
-    return [edge_direction(vertices[i], vertices[(i + 1) % len(vertices)])
-            for i in range(len(vertices))]
+    return [
+        edge_direction(vertices[i], vertices[(i + 1) % len(vertices)])
+        for i in range(len(vertices))
+    ]
 
 
 def project(vertices, axis):
@@ -73,8 +75,7 @@ def overlap(projection1, projection2):
     """
     :return: Boolean indicating if the two projections overlap
     """
-    return min(projection1) <= max(projection2) and \
-           min(projection2) <= max(projection1)
+    return min(projection1) <= max(projection2) and min(projection2) <= max(projection1)
 
 
 def separating_axis_theorem(vertices_a, vertices_b):

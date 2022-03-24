@@ -3,17 +3,29 @@
 from __future__ import print_function
 
 from pybullet_tools.pr2_utils import PR2_GROUPS
-from pybullet_tools.utils import HideOutput, disconnect, set_base_values, joint_from_name, connect, wait_if_gui, \
-    dump_world, get_link_name, wait_if_gui, clone_body, get_link_parent, get_link_descendants, load_model
+from pybullet_tools.utils import (
+    HideOutput,
+    clone_body,
+    connect,
+    disconnect,
+    dump_world,
+    get_link_descendants,
+    get_link_name,
+    get_link_parent,
+    joint_from_name,
+    load_model,
+    set_base_values,
+    wait_if_gui,
+)
 
 
 def test_clone_robot(pr2):
     # TODO: j toggles frames, p prints timings, w is wire, a is boxes
     new_pr2 = clone_body(pr2, visual=True, collision=False)
-    #new_pr2 = clone_body_editor(pr2, visual=True, collision=True)
+    # new_pr2 = clone_body_editor(pr2, visual=True, collision=True)
     dump_world()
-    #print(load_srdf_collisions())
-    #print(load_dae_collisions())
+    # print(load_srdf_collisions())
+    # print(load_dae_collisions())
 
     # TODO: some unimportant quats are off for both URDF and other
     # TODO: maybe all the frames are actually correct when I load things this way?
@@ -54,17 +66,19 @@ def test_clone_robot(pr2):
     wait_if_gui()
     # TODO: the drake one has a large out-of-place cylinder as well
 
+
 def test_clone_arm(pr2):
-    first_joint_name = PR2_GROUPS['left_arm'][0]
+    first_joint_name = PR2_GROUPS["left_arm"][0]
     first_joint = joint_from_name(pr2, first_joint_name)
     parent_joint = get_link_parent(pr2, first_joint)
     print(get_link_name(pr2, parent_joint), parent_joint, first_joint_name, first_joint)
-    print(get_link_descendants(pr2, first_joint)) # TODO: least common ancestor
+    print(get_link_descendants(pr2, first_joint))  # TODO: least common ancestor
     links = [first_joint] + get_link_descendants(pr2, first_joint)
     new_arm = clone_body(pr2, links=links, collision=False)
     dump_world()
     set_base_values(pr2, (-2, 0, 0))
     wait_if_gui()
+
 
 def main():
     connect(use_gui=True)
@@ -74,9 +88,9 @@ def main():
     test_clone_robot(pr2)
     test_clone_arm(pr2)
 
-    wait_if_gui('Finish?')
+    wait_if_gui("Finish?")
     disconnect()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

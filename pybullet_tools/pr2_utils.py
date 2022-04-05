@@ -362,13 +362,13 @@ def get_group_conf(robot, group, **kwargs):
 # get_group_position = get_group_conf
 
 
-def set_group_conf(robot, group, positions):
-    set_joint_positions(robot, get_group_joints(robot, group), positions)
+def set_group_conf(robot, group, positions, **kwargs):
+    set_joint_positions(robot, get_group_joints(robot, group, **kwargs), positions, **kwargs)
 
 
-def set_group_positions(robot, group_positions):
+def set_group_positions(robot, group_positions, **kwargs):
     for group, positions in group_positions.items():
-        set_group_conf(robot, group, positions)
+        set_group_conf(robot, group, positions, **kwargs)
 
 
 def get_group_positions(robot):
@@ -382,8 +382,8 @@ def get_group_positions(robot):
 # End-effectors
 
 
-def get_arm_joints(robot, arm):
-    return get_group_joints(robot, arm_from_arm(arm))
+def get_arm_joints(robot, arm, **kwargs):
+    return get_group_joints(robot, arm_from_arm(arm), **kwargs)
 
 
 def get_torso_arm_joints(robot, arm):

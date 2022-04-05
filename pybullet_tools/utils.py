@@ -33,7 +33,7 @@ from pybullet_utils.transformations import (
     unit_vector,
 )
 
-DEFAULT_CLIENT = None
+DEFAULT_CLIENT = p
 
 
 def join_paths(*paths):
@@ -4981,6 +4981,7 @@ def get_collision_fn(
     use_aabb=False,
     cache=False,
     max_distance=MAX_DISTANCE,
+    disable_collisions=False,
     **kwargs
 ):
     # TODO: convert most of these to keyword arguments
@@ -5008,6 +5009,9 @@ def get_collision_fn(
     # TODO: cluster together links that remain rigidly attached to reduce the number of checks
 
     def collision_fn(q, verbose=False):
+        if(disable_collisions):
+            return False
+
         if limits_fn(q):
             return True
         set_joint_positions(body, joints, q, **kwargs)
@@ -5152,6 +5156,7 @@ def plan_joint_motion(
     cache=True,
     custom_limits={},
     algorithm=None,
+    disable_collisions=False,
     **kwargs
 ):
 
@@ -5172,6 +5177,7 @@ def plan_joint_motion(
         max_distance=max_distance,
         use_aabb=use_aabb,
         cache=cache,
+        disable_collisions=disable_collisions,
         **kwargs
     )
 
@@ -5216,14 +5222,10 @@ def plan_2d_joint_motion(
     weights=None,
     resolutions=None,
     algorithm=None,
+    disable_collisions=False,
     **kwargs
 ):
     """Assumed joint indices are x, y, theta"""
-
-    print("start conf")
-    print(start_conf)
-    print("end conf")
-    print(end_conf)
 
     def oobb_flat_vertices(oobb):
         diff_thresh = 0.001
@@ -5282,6 +5284,8 @@ def plan_2d_joint_motion(
         return refine_fn(q1, q2, steps)
 
     def collision_fn(q, **kwargs):
+        if(disable_collisions):
+            return False
         # TODO: separating axis theorem
         new_oobb = oobb_flat_vertices(
             OOBB(
@@ -6026,17 +6030,17 @@ def directed_pose_generator(robot, gripper_pose, **kwargs):
         # yield get_pose(robot)
 
 
-def custom_limits_from_base_limits(robot, base_limits, yaw_limit=None):
+def custom_limits_from_base_limits(robot, base_limits, yaw_limit=None, **kwargs):
     # TODO: unify with SS-Replan
     x_limits, y_limits = zip(*base_limits)
     custom_limits = {
-        joint_from_name(robot, "x"): x_limits,
-        joint_from_name(robot, "y"): y_limits,
+        joint_from_name(robot, "x", **kwargs): x_limits,
+        joint_from_name(robot, "y", **kwargs): y_limits,
     }
     if yaw_limit is not None:
         custom_limits.update(
             {
-                joint_from_name(robot, "theta"): yaw_limit,
+                joint_from_name(robot, "theta", **kwargs): yaw_limit,
             }
         )
     return custom_limits

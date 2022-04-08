@@ -14,7 +14,6 @@ from .utils import (
     TEMP_DIR,
     LockRenderer,
     Pose,
-    PoseSaver,
     aabb_from_points,
     add_line,
     apply_affine,
@@ -23,7 +22,6 @@ from .utils import (
     create_box,
     create_shape,
     create_shape_array,
-    draw_aabb,
     draw_oobb,
     draw_point,
     draw_pose,
@@ -73,7 +71,9 @@ class VoxelGrid(object):
         default=bool,
         world_from_grid=unit_pose(),
         aabb=None,
+        client=None,
         color=(1, 0, 0, 0.5),
+        **kwargs
     ):
         # def __init__(self, sizes, centers, pose=unit_pose()):
         # TODO: defaultdict
@@ -85,6 +85,7 @@ class VoxelGrid(object):
         self.world_from_grid = world_from_grid
         self.aabb = aabb  # TODO: apply
         self.color = color
+        self.client = client
         # self.bodies = None
         # TODO: store voxels more intelligently spatially
 
@@ -244,7 +245,7 @@ class VoxelGrid(object):
     def create_box(self):
         color = (0, 0, 0, 0)
         # color = None
-        box = create_box(*self.resolutions, color=color)
+        box = create_box(*self.resolutions, color=color, client=self.client)
         # set_color(box, color=color)
         set_pose(box, self.world_from_grid)  # Set to (0, 0, 0) instead?
         return box
@@ -258,18 +259,18 @@ class VoxelGrid(object):
             # pose_grid = multiply(invert(self.world_from_grid), pose_world)
             # with PoseSaver(body):
             #     set_pose(body, pose_grid)
-            for link in get_all_links(body):
-                aabb = get_aabb(body, link)  # TODO: pad using threshold
+            for link in get_all_links(body, client=self.client):
+                aabb = get_aabb(body, link, client=self.client)  # TODO: pad using threshold
                 for voxel in self.voxels_from_aabb(aabb):
                     if self.is_occupied(voxel) == occupied:
                         check_voxels.setdefault(voxel, []).append((body, link))
         return check_voxels
 
     def check_collision(self, box, voxel, pairs, threshold=0.0):
-        box_pairs = [(box, link) for link in get_all_links(box)]
+        box_pairs = [(box, link) for link in get_all_links(box, client=self.client)]
         set_pose(box, self.pose_from_voxel(voxel))
         return any(
-            pairwise_link_collision(body1, link1, body2, link2, max_distance=threshold)
+            pairwise_link_collision(body1, link1, body2, link2, max_distance=threshold, client=self.client)
             for (body1, link1), (body2, link2) in product(pairs, box_pairs)
         )
 
@@ -293,7 +294,7 @@ class VoxelGrid(object):
         ) in check_voxels.items():  # pairs typically only has one element
             if self.check_collision(box, voxel, pairs, threshold=threshold):
                 self.set_occupied(voxel)
-        remove_body(box)
+        remove_body(box, client=self.client)
 
     def remove_body(self, body, **kwargs):
         self.remove_bodies([body], **kwargs)
@@ -305,23 +306,23 @@ class VoxelGrid(object):
         for voxel, pairs in check_voxels.items():
             if self.check_collision(box, voxel, pairs, **kwargs):
                 self.set_free(voxel)
-        remove_body(box)
+        remove_body(box, client=self.client)
 
     def draw_origin(self, scale=1, **kwargs):
         size = scale * np.min(self.resolutions)
-        return draw_pose(self.world_from_grid, length=size, **kwargs)
+        return draw_pose(self.world_from_grid, length=size, client=self.client, **kwargs)
 
     def draw_voxel(self, voxel, color=None):
         if color is None:
             color = self.color
         aabb = self.aabb_from_voxel(voxel)
-        return draw_oobb(OOBB(aabb, self.world_from_grid), color=color[:3])
+        return draw_oobb(OOBB(aabb, self.world_from_grid), color=color[:3], client=self.client)
         # handles.extend(draw_aabb(aabb, color=self.color[:3]))
 
     def draw_voxel_boxes(self, voxels=None, **kwargs):
         if voxels is None:
             voxels = self.occupied
-        with LockRenderer():
+        with LockRenderer(client=self.client):
             handles = []
             for voxel in voxels:
                 handles.extend(self.draw_voxel(voxel, **kwargs))
@@ -333,21 +334,21 @@ class VoxelGrid(object):
             voxels = self.occupied
         if color is None:
             color = self.color
-        with LockRenderer():
+        with LockRenderer(client=self.client):
             size = np.min(self.resolutions) / 2
             handles = []
             for voxel in voxels:
                 point_world = self.to_world(self.center_from_voxel(voxel))
-                handles.extend(draw_point(point_world, size=size, color=color[:3]))
+                handles.extend(draw_point(point_world, size=size, color=color[:3], client=self.client))
             return handles
 
     def create_voxel_bodies1(self):
         start_time = time.time()
-        geometry = get_box_geometry(*self.resolutions)
-        collision_id, visual_id = create_shape(geometry, color=self.color)
+        geometry = get_box_geometry(*self.resolutions, client=self.client)
+        collision_id, visual_id = create_shape(geometry, color=self.color, client=self.client)
         bodies = []
         for voxel in self.occupied:
-            body = create_body(collision_id, visual_id)
+            body = create_body(collision_id, visual_id, client=self.client)
             # scale = self.resolutions[0]
             # body = load_model('models/voxel.urdf', fixed_base=True, scale=scale)
             set_pose(body, self.pose_from_voxel(voxel))
@@ -356,8 +357,8 @@ class VoxelGrid(object):
         return bodies
 
     def create_voxel_bodies2(self):
-        geometry = get_box_geometry(*self.resolutions)
-        collision_id, visual_id = create_shape(geometry, color=self.color)
+        geometry = get_box_geometry(*self.resolutions, client=self.client)
+        collision_id, visual_id = create_shape(geometry, color=self.color, client=self.client)
         ordered_voxels = self.occupied
         bodies = []
         for start in range(0, len(ordered_voxels), MAX_LINKS):
@@ -387,18 +388,18 @@ class VoxelGrid(object):
 
     def create_voxel_bodies3(self):
         ordered_voxels = self.occupied
-        geoms = [get_box_geometry(*self.resolutions) for _ in ordered_voxels]
+        geoms = [get_box_geometry(*self.resolutions, client=self.client) for _ in ordered_voxels]
         poses = list(map(self.pose_from_voxel, ordered_voxels))
         # colors = [list(self.color) for _ in self.voxels] # TODO: colors don't work
         colors = None
-        collision_id, visual_id = create_shape_array(geoms, poses, colors)
-        body = create_body(collision_id, visual_id)  # Max seems to be 16
+        collision_id, visual_id = create_shape_array(geoms, poses, colors, client=self.client)
+        body = create_body(collision_id, visual_id, client=self.client)  # Max seems to be 16
         # dump_body(body)
         set_color(body, self.color)
         return [body]
 
     def create_voxel_bodies(self):
-        with LockRenderer():
+        with LockRenderer(client=self.client):
             return self.create_voxel_bodies1()
             # return self.create_voxel_bodies2()
             # return self.create_voxel_bodies3()
@@ -424,7 +425,7 @@ class VoxelGrid(object):
         return voxel_intervals
 
     def draw_intervals(self):
-        with LockRenderer():
+        with LockRenderer(client=self.client):
             handles = []
             for (i, j, (k1, k2)) in self.create_intervals():
                 voxels = [(i, j, k1), (i, j, k2)]
@@ -436,12 +437,12 @@ class VoxelGrid(object):
                     ]
                 )
                 handles.extend(
-                    draw_oobb(OOBB(aabb, self.world_from_grid), color=self.color[:3])
+                    draw_oobb(OOBB(aabb, self.world_from_grid), color=self.color[:3], client=self.client)
                 )
             return handles
 
     def draw_vertical_lines(self):
-        with LockRenderer():
+        with LockRenderer(client=self.client):
             handles = []
             for (i, j, (k1, k2)) in self.create_intervals():
                 voxels = [(i, j, k1), (i, j, k2)]
@@ -455,7 +456,7 @@ class VoxelGrid(object):
                 center = get_aabb_center(aabb)
                 p1 = self.to_world(np.append(center[:2], [aabb[0][2]]))
                 p2 = self.to_world(np.append(center[:2], [aabb[1][2]]))
-                handles.append(add_line(p1, p2, color=self.color[:3]))
+                handles.append(add_line(p1, p2, color=self.color[:3], client=self.client))
             return handles
 
     def project2d(self):
@@ -472,7 +473,7 @@ class VoxelGrid(object):
     ):
         min_z, max_z = 0.0, 2.0
         plane_extent = plane_size * np.array([1, 1, 0])
-        plane_lower = get_point(plane) - plane_extent / 2.0
+        plane_lower = get_point(plane, client=self.client) - plane_extent / 2.0
         # plane_aabb = (plane_lower, plane_lower + plane_extent)
         # plane_aabb = get_aabb(plane) # TODO: bounding box is effectively empty
         # plane_lower, plane_upper = plane_aabb

@@ -33,7 +33,7 @@ from pybullet_utils.transformations import (
     unit_vector,
 )
 
-DEFAULT_CLIENT = p
+DEFAULT_CLIENT = None
 
 
 def join_paths(*paths):
@@ -1288,8 +1288,8 @@ def set_renderer(enable, client=None):
     client = client or DEFAULT_CLIENT
     if not has_gui(client=client):
         return
-    if get_renderer() == enable:
-        return
+
+    print("Config debug vis")
     client.configureDebugVisualizer(p.COV_ENABLE_RENDERING, int(enable))
 
 

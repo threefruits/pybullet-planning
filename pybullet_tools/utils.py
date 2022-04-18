@@ -33,7 +33,7 @@ from pybullet_utils.transformations import (
     unit_vector,
 )
 
-DEFAULT_CLIENT = None
+DEFAULT_CLIENT = p
 
 
 def join_paths(*paths):
@@ -5212,7 +5212,9 @@ def plan_joint_motion(
 
 
 def plan_2d_joint_motion(
+    robot,
     robot_aabb,
+    joints,
     lower_limits,
     upper_limits,
     start_conf,
@@ -5226,7 +5228,6 @@ def plan_2d_joint_motion(
     **kwargs
 ):
     """Assumed joint indices are x, y, theta"""
-
     def oobb_flat_vertices(oobb):
         diff_thresh = 0.001
         verts = get_oobb_vertices(oobb)
@@ -5247,8 +5248,11 @@ def plan_2d_joint_motion(
     if (weights is None) and (resolutions is not None):
         weights = np.reciprocal(resolutions)
 
+    circular_joints = [is_circular(robot, joint, **kwargs) for joint in joints]
+    lower_limits = [-2*PI if circular_joints[li] else ll for li, ll in enumerate(lower_limits)]
+    upper_limits = [2*PI if circular_joints[li] else ll for li, ll in enumerate(upper_limits)]
+
     sample_generator = interval_generator(lower_limits, upper_limits, **kwargs)
-    circular_joints = [False, False, True]
 
     def sample_fn():
         return tuple(next(sample_generator))
@@ -5283,29 +5287,59 @@ def plan_2d_joint_motion(
         )
         return refine_fn(q1, q2, steps)
 
+
+    def limits_fn(q):
+        if not all_between(lower_limits, q, upper_limits):
+            # print('Joint limits violated')
+            # if verbose: print(lower_limits, q, upper_limits)
+            return True
+        return False
+
+
     def collision_fn(q, **kwargs):
+
+        if limits_fn(q):
+            return True
+
         if(disable_collisions):
             return False
         # TODO: separating axis theorem
-        new_oobb = oobb_flat_vertices(
-            OOBB(
+        new_oobb = OOBB(
                 aabb=robot_aabb,
                 pose=Pose(point=Point(x=q[0], y=q[1]), euler=Euler(yaw=q[2])),
             )
-        )
+        new_oobb_flat = oobb_flat_vertices(new_oobb)
         oobb_flats = [oobb_flat_vertices(o) for o in obstacle_oobbs]
+
         flat_collisions = []
         for oobb_flat in oobb_flats:
-            collision = separating_axis_theorem(new_oobb, oobb_flat)
+            collision = separating_axis_theorem(new_oobb_flat, oobb_flat)
             flat_collisions.append(collision)
+            # for attachment_aabb, attachment_grasp in attachments:
+            #     attachment_pose = multiply(new_oobb.pose, attachment_grasp)
+            #     attachment_euler = p.getEulerFromQuaternion(attachment_pose[1])
+            #     attachment_flat = oobb_flat_vertices(OOBB(
+            #         aabb=attachment_aabb,
+            #         pose=Pose(point=Point(x=attachment_pose[0][0], y=attachment_pose[0][1]), euler=Euler(yaw=attachment_euler[2])),
+            #     ))
+            #     collision = separating_axis_theorem(new_oobb_flat, attachment_flat)
+            #     # flat_collisions.append(collision)
+
         return any(flat_collisions)
 
     if not check_initial_end(start_conf, end_conf, collision_fn):
+        # q = end_conf
+        # new_oobb = OOBB(
+        #         aabb=robot_aabb,
+        #         pose=Pose(point=Point(x=q[0], y=q[1]), euler=Euler(yaw=q[2])),
+        #     )
+        # new_oobb_flat = oobb_flat_vertices(new_oobb)
+        # draw_oobb(new_oobb)
+        # import time
         return None
 
     if algorithm is None:
         from motion_planners.rrt_connect import birrt
-
         plan = birrt(
             start_conf,
             end_conf,

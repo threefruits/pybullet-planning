@@ -33,7 +33,7 @@ from pybullet_utils.transformations import (
     unit_vector,
 )
 
-DEFAULT_CLIENT = p
+DEFAULT_CLIENT = None
 
 
 def join_paths(*paths):
@@ -3301,8 +3301,8 @@ def create_visual_shape(
         "visualFrameOrientation": quat,
     }
     visual_args.update(geometry)
-    if specular is not None:
-        visual_args["specularColor"] = specular
+    # if specular is not None:
+    visual_args["specularColor"] = [0,0,0]
     return client.createVisualShape(**visual_args)
 
 
@@ -5009,8 +5009,8 @@ def get_collision_fn(
     # TODO: cluster together links that remain rigidly attached to reduce the number of checks
 
     def collision_fn(q, verbose=False):
-        if(disable_collisions):
-            return False
+        # if(disable_collisions):
+        #     return False
 
         if limits_fn(q):
             return True
@@ -5325,7 +5325,16 @@ def plan_2d_joint_motion(
             #     collision = separating_axis_theorem(new_oobb_flat, attachment_flat)
             #     # flat_collisions.append(collision)
 
-        return any(flat_collisions)
+        if(any(flat_collisions)):
+            # new_oobb = OOBB(
+            #         aabb=robot_aabb,
+            #         pose=Pose(point=Point(x=q[0], y=q[1]), euler=Euler(yaw=q[2])),
+            #     )
+            # new_oobb_flat = oobb_flat_vertices(new_oobb)
+            # draw_oobb(new_oobb)
+            return True
+
+        return False 
 
     if not check_initial_end(start_conf, end_conf, collision_fn):
         # q = end_conf

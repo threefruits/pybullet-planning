@@ -89,6 +89,31 @@ class VoxelGrid(object):
         # self.bodies = None
         # TODO: store voxels more intelligently spatially
 
+    def get_frontier(self):
+        twod = self.project2d()
+        xs, ys, _, = zip(*twod)
+
+        twod_array = np.zeros((max(xs)-min(xs)+1, max(ys)-min(ys)+1))
+        for i, j, _ in twod:
+            twod_array[i-min(xs), j-min(ys)] = 1
+
+        frontiers=[]
+        for x in range(twod_array.shape[0]):
+            for y in range(twod_array.shape[1]):
+                frontier=False
+                for diffx in [-1, 1]:
+                    for diffy in [-1, 1]:
+                        if(twod_array[x, y]==1 and \
+                            x+diffx>=0 and x+diffx<twod_array.shape[0] and \
+                            y+diffy>=0 and y+diffy<twod_array.shape[1]):
+                            if(twod_array[x+diffx, y+diffy] == 0):
+                                frontier=True
+                if(frontier):
+                    point = self.pose_from_voxel((x, y, 1))[0]
+                    frontiers.append((point[0], point[1]))
+        
+        return frontiers
+
     @property
     def occupied(self):  # TODO: get_occupied
         return sorted(self.value_from_voxel)

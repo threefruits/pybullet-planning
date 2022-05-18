@@ -32,7 +32,7 @@ from pybullet_utils.transformations import (
     random_quaternion,
 )
 
-DEFAULT_CLIENT = None
+DEFAULT_CLIENT = p
 
 
 def join_paths(*paths):

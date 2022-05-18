@@ -23,14 +23,13 @@ from multiprocessing import TimeoutError
 
 import numpy as np
 import pybullet as p
-from pybullet_tools.separating_axis import separating_axis_theorem
+from .separating_axis import separating_axis_theorem
 from pybullet_utils.transformations import (
     euler_from_quaternion,
     quaternion_about_axis,
     quaternion_from_matrix,
     quaternion_slerp,
     random_quaternion,
-    unit_vector,
 )
 
 DEFAULT_CLIENT = None

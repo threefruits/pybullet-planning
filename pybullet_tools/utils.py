@@ -1288,7 +1288,6 @@ def set_renderer(enable, client=None):
     if not has_gui(client=client):
         return
 
-    print("Config debug vis")
     client.configureDebugVisualizer(p.COV_ENABLE_RENDERING, int(enable))
 
 
@@ -1298,11 +1297,9 @@ class LockRenderer(Saver):
         self.client = client or DEFAULT_CLIENT
         # skip if the visualizer isn't active
         if has_gui(client=self.client) and lock:
-            print("LOCKING RENDER")
             set_renderer(enable=False, client=self.client)
 
     def restore(self):
-        print("UNLOCKING RENDER")
         if not has_gui(client=self.client):
             return
 

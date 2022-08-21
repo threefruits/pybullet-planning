@@ -86,6 +86,8 @@ class VoxelGrid(object):
         self.aabb = aabb  # TODO: apply
         self.color = color
         self.client = client
+        self.occupied_points = []
+        self.occupied_voxel_points = []
         # self.bodies = None
         # TODO: store voxels more intelligently spatially
 
@@ -230,12 +232,17 @@ class VoxelGrid(object):
         if self.is_occupied(voxel):
             return False
         self.set_value(voxel, value=self.default())
+        self.occupied_points.append(list(self.center_from_voxel(voxel)))
+        self.occupied_voxel_points.append(voxel)
         return True
 
     def set_free(self, voxel):
         if not self.is_occupied(voxel):
             return False
         self.remove_value(voxel)
+        idx = self.occupied_points.index(list(self.center_from_voxel(voxel)))
+        self.occupied_points.remove(self.occupied_points[idx])
+        self.occupied_voxel_points.remove(self.occupied_voxel_points[idx])
         return True
 
     def get_neighbors(self, index):

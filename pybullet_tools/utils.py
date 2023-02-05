@@ -4520,6 +4520,10 @@ def get_closest_points(
             linkIndexB=link2,
             distance=max_distance,
         )
+
+    if(results is None):
+        results = [] # Strange pybullet failure case
+
     return [CollisionInfo(*info) for info in results]
 
 

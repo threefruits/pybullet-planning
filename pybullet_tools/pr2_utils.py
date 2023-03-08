@@ -6,6 +6,7 @@ from collections import namedtuple
 from itertools import combinations
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 from .pr2_never_collisions import NEVER_COLLISIONS
 from .utils import (

@@ -3808,10 +3808,16 @@ def get_collision_data(body, link=BASE_LINK, client=None, **kwargs):
     # TODO: try catch
     # TODO: cache
     client = client or DEFAULT_CLIENT
+    while(True):
+        try:
+            tups = client.getCollisionShapeData(int(body), link)
+            break
+        except:
+            print("Pybullet error getting collision shape. Trying again.")
+    
     return [
-        CollisionShapeData(*tup) for tup in client.getCollisionShapeData(int(body), link)
+        CollisionShapeData(*tup) for tup in tups
     ]
-
 
 def can_collide(body, link=BASE_LINK, **kwargs):
     return len(get_collision_data(body, link=link, **kwargs)) != 0

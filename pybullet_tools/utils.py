@@ -5064,6 +5064,28 @@ def get_collision_fn(
             ) and pairwise_collision(body1, body2, **kwargs):
                 # print(get_body_name(body1, **kwargs), get_body_name(body2, **kwargs))
 
+                # Code for finding the specific body link pair collision
+
+                # if(isinstance(body1, CollisionPair)):
+                #     body1_links = get_all_links(body1.body, **kwargs)
+                #     body1 = body1.body
+                # else:
+                #     body1_links = get_all_links(body1, **kwargs)
+
+
+                # if(isinstance(body2, CollisionPair)):
+                #     body2_links = get_all_links(body2.body, **kwargs)
+                #     body2 = body2.body
+                # else:
+                #     body2_links = get_all_links(body2, **kwargs)
+
+                # print(body1_links, body2_links)
+
+                # for link1 in body1_links:
+                #     for link2 in body2_links:
+                #         if pairwise_link_collision(body1, link1, body2, link2, **kwargs):
+                #             print(get_link_name(body1, link1, **kwargs), get_link_name(body2, link2, **kwargs))
+
                 if verbose:
                     print(body1, body2)
                 return True

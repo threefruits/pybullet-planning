@@ -1429,7 +1429,7 @@ def get_connection(client=None):
     return client.getConnectionInfo()["connectionMethod"]
 
 
-def has_gui(client=None):
+def has_gui(client=None, **kwargs):
     client = client or DEFAULT_CLIENT
     return get_connection(client=client) == p.GUI
 
@@ -1782,7 +1782,7 @@ def get_projection_matrix(
     # return np.reshape(projection_matrix, [4, 4])
 
 
-def image_from_segmented(segmented, color_from_body=None):
+def image_from_segmented(segmented, color_from_body=None, **kwargs):
     if color_from_body is None:
         bodies = get_bodies()
         color_from_body = dict(zip(bodies, spaced_colors(len(bodies))))
@@ -5038,7 +5038,6 @@ def get_collision_fn(
                 body, link1, body, link2, **kwargs
             ):  # , **kwargs):
 
-                # print(get_link_name(body, link1, **kwargs), get_link_name(body, link2, **kwargs))
 
                 if verbose:
                     print(body, link1, body, link2)
@@ -5062,10 +5061,6 @@ def get_collision_fn(
                 not use_aabb
                 or aabb_overlap(get_moving_aabb(body1), get_obstacle_aabb(body2))
             ) and pairwise_collision(body1, body2, **kwargs):
-                # print(get_body_name(body1, **kwargs), get_body_name(body2, **kwargs))
-
-                # Code for finding the specific body link pair collision
-
                 # if(isinstance(body1, CollisionPair)):
                 #     body1_links = get_all_links(body1.body, **kwargs)
                 #     body1 = body1.body
@@ -5085,7 +5080,7 @@ def get_collision_fn(
                 #     for link2 in body2_links:
                 #         if pairwise_link_collision(body1, link1, body2, link2, **kwargs):
                 #             print(get_link_name(body1, link1, **kwargs), get_link_name(body2, link2, **kwargs))
-
+      
                 if verbose:
                     print(body1, body2)
                 return True
@@ -5158,13 +5153,17 @@ def plan_direct_joint_motion(body, joints, end_conf, **kwargs):
     return plan_waypoints_joint_motion(body, joints, [end_conf], **kwargs)
 
 
-def check_initial_end(start_conf, end_conf, collision_fn, verbose=True):
+def check_initial_end(body, joints, start_conf, end_conf, collision_fn, verbose=True, **kwargs):
     # TODO: collision_fn might not accept kwargs
     if collision_fn(start_conf, verbose=verbose):
+        set_joint_positions(body, joints, start_conf, **kwargs)
         print("Warning: initial configuration is in collision")
+        wait_if_gui(**kwargs)
         return False
     if collision_fn(end_conf, verbose=verbose):
+        set_joint_positions(body, joints, end_conf, **kwargs)
         print("Warning: end configuration is in collision")
+        wait_if_gui(**kwargs)
         return False
     return True
 
@@ -5210,7 +5209,7 @@ def plan_joint_motion(
     )
 
     start_conf = get_joint_positions(body, joints, **kwargs)
-    if not check_initial_end(start_conf, end_conf, collision_fn):
+    if not check_initial_end(body, joints, start_conf, end_conf, collision_fn, **kwargs):
         return None
 
     if algorithm is None:

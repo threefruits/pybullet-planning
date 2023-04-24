@@ -477,7 +477,7 @@ class VoxelGrid(object):
 
     def draw_intervals(self, client=None):
         with LockRenderer(client=client):
-            self.client.removeAllUserDebugItems()
+            client.removeAllUserDebugItems()
             handles = []
             for (i, j, (k1, k2)) in self.create_intervals():
                 voxels = [(i, j, k1), (i, j, k2)]

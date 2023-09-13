@@ -140,6 +140,14 @@ inf_generator = count  # count | lambda: iter(int, 1)
 List = lambda *args: list(args)
 Tuple = lambda *args: tuple(args)
 
+def get_oobb(body, link=None, client=None, **kwargs):
+    client = client or DEFAULT_CLIENT
+    pose = get_pose(body, client=client)
+    set_pose(body, unit_pose(), client=client)
+    aabb = get_aabb(body, client=client)
+    set_pose(body, pose, client=client)
+    return OOBB(aabb=aabb, pose=pose)
+
 
 def empty_sequence():
     return iter([])

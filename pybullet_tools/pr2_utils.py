@@ -106,6 +106,81 @@ def gripper_from_arm(arm):  # TODO: deprecate
     assert side in ARM_NAMES
     return "{}_gripper".format(side)
 
+GRASP_LENGTH = 0.04
+MAX_GRASP_WIDTH = np.inf
+
+def get_top_and_bottom_grasps(
+    body,
+    body_aabb,
+    body_pose,
+    tool_pose=unit_pose(),
+    under = False,
+    max_width=MAX_GRASP_WIDTH,
+    grasp_length=GRASP_LENGTH,
+    **kwargs
+):
+    # TODO: rename the box grasps
+    # from IPython import embed; embed()
+    rotation_matrix = R.from_quat(list(body_pose[1]))
+
+    rotation_matrix = rotation_matrix.as_matrix()
+    best_axis = np.argmax(np.abs(rotation_matrix[2,:3]))
+    direction = np.sign(rotation_matrix[2,best_axis])
+
+    dims = np.array([*get_aabb_extent(body_aabb)])
+    w,l,h = dims
+    mask = np.zeros(3)
+    mask[best_axis] = 1.0
+
+    distance = dims[best_axis]/2.0 - grasp_length
+    translate_z = Pose(point=np.array([0.0, 0.0, distance]))
+        
+    if best_axis == 2:
+        if direction > 0.0:
+            val = np.pi
+        else:
+            val = 0.0
+        reflect_z = Pose(euler=[val, 0, 0])
+    elif best_axis == 1:
+        if direction > 0.0:
+            val = -np.pi / 2.0
+        else:
+            val = np.pi / 2.0
+        reflect_z = Pose(euler=[val, 0, 0])
+    else:
+        if direction > 0.0:
+            val = np.pi / 2.0
+        else:
+            val = -np.pi / 2.0
+        reflect_z = Pose(euler=[0, val, 0])
+
+    grasps = []
+    if w <= max_width:
+        for i in range(1 + under):
+            rotate_z = Pose(euler=[0, 0, math.pi / 2 + i * math.pi])
+            grasps += [
+                multiply(
+                    tool_pose,
+                    translate_z,
+                    rotate_z,
+                    reflect_z,
+                )
+            ]
+    if l <= max_width:
+        for i in range(1 + under):
+            rotate_z = Pose(euler=[0, 0, i * math.pi])
+            grasps += [
+                multiply(
+                    tool_pose,
+                    translate_z,
+                    rotate_z,
+                    reflect_z
+                )
+            ]
+
+    return list(reversed(grasps))
+
+    
 
 gripper_from_side = gripper_from_arm
 

@@ -3616,7 +3616,7 @@ def visual_shape_from_data(data, client=None, **kwargs):
         radius=get_data_radius(data),
         halfExtents=np.array(get_data_extents(data)) / 2,
         length=get_data_height(data),  # TODO: pybullet bug
-        fileName=data.meshAssetFileName,
+        fileName=data.meshAssetFileName.decode(),
         meshScale=get_data_scale(data),
         planeNormal=get_data_normal(data),
         rgbaColor=data.rgbaColor,
@@ -5371,7 +5371,7 @@ def plan_2d_joint_motion(
 
         return False 
 
-    if not check_initial_end(start_conf, end_conf, collision_fn):
+    if not check_initial_end(robot, joints, start_conf, end_conf, collision_fn):
         # q = end_conf
         # new_oobb = OOBB(
         #         aabb=robot_aabb,
@@ -5674,7 +5674,7 @@ def plan_nonholonomic_motion(
     )
 
     start_conf = get_joint_positions(body, joints)
-    if not check_initial_end(start_conf, end_conf, collision_fn):
+    if not check_initial_end(body, joints, start_conf, end_conf, collision_fn):
         return None
 
     if algorithm is None:

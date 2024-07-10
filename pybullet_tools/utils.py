@@ -140,14 +140,6 @@ inf_generator = count  # count | lambda: iter(int, 1)
 List = lambda *args: list(args)
 Tuple = lambda *args: tuple(args)
 
-def get_oobb(body, link=None, client=None, **kwargs):
-    client = client or DEFAULT_CLIENT
-    pose = get_pose(body, client=client)
-    set_pose(body, unit_pose(), client=client)
-    aabb = get_aabb(body, client=client)
-    set_pose(body, pose, client=client)
-    return OOBB(aabb=aabb, pose=pose)
-
 
 def empty_sequence():
     return iter([])
@@ -1437,7 +1429,7 @@ def get_connection(client=None):
     return client.getConnectionInfo()["connectionMethod"]
 
 
-def has_gui(client=None, **kwargs):
+def has_gui(client=None):
     client = client or DEFAULT_CLIENT
     return get_connection(client=client) == p.GUI
 
@@ -1790,7 +1782,7 @@ def get_projection_matrix(
     # return np.reshape(projection_matrix, [4, 4])
 
 
-def image_from_segmented(segmented, color_from_body=None, **kwargs):
+def image_from_segmented(segmented, color_from_body=None):
     if color_from_body is None:
         bodies = get_bodies()
         color_from_body = dict(zip(bodies, spaced_colors(len(bodies))))
@@ -2824,7 +2816,23 @@ def get_custom_limits(
             joint_limits.append(get_joint_limits(body, joint, **kwargs))
     return zip(*joint_limits)
 
-
+def get_custom_limits_with_base(body, arm_joints, base_joints, custom_limits={}, circular_limits=UNBOUNDED_LIMITS):
+    joint_limits = []
+    for joint in base_joints:
+        if joint in custom_limits:
+            joint_limits.append(custom_limits[joint])
+        elif is_circular(body, joint):
+            joint_limits.append(circular_limits)
+        else:
+            joint_limits.append(get_joint_limits(body, joint))
+    for joint in arm_joints:
+        if joint in custom_limits:
+            joint_limits.append(custom_limits[joint])
+        elif is_circular(body, joint):
+            joint_limits.append(circular_limits)
+        else:
+            joint_limits.append(get_joint_limits(body, joint))
+    return zip(*joint_limits)
 #####################################
 
 # Links
@@ -3616,7 +3624,7 @@ def visual_shape_from_data(data, client=None, **kwargs):
         radius=get_data_radius(data),
         halfExtents=np.array(get_data_extents(data)) / 2,
         length=get_data_height(data),  # TODO: pybullet bug
-        fileName=data.meshAssetFileName.decode(),
+        fileName=data.meshAssetFileName,
         meshScale=get_data_scale(data),
         planeNormal=get_data_normal(data),
         rgbaColor=data.rgbaColor,
@@ -5046,6 +5054,7 @@ def get_collision_fn(
                 body, link1, body, link2, **kwargs
             ):  # , **kwargs):
 
+                # print(get_link_name(body, link1, **kwargs), get_link_name(body, link2, **kwargs))
 
                 if verbose:
                     print(body, link1, body, link2)
@@ -5069,26 +5078,8 @@ def get_collision_fn(
                 not use_aabb
                 or aabb_overlap(get_moving_aabb(body1), get_obstacle_aabb(body2))
             ) and pairwise_collision(body1, body2, **kwargs):
-                # if(isinstance(body1, CollisionPair)):
-                #     body1_links = get_all_links(body1.body, **kwargs)
-                #     body1 = body1.body
-                # else:
-                #     body1_links = get_all_links(body1, **kwargs)
+                # print(get_body_name(body1, **kwargs), get_body_name(body2, **kwargs))
 
-
-                # if(isinstance(body2, CollisionPair)):
-                #     body2_links = get_all_links(body2.body, **kwargs)
-                #     body2 = body2.body
-                # else:
-                #     body2_links = get_all_links(body2, **kwargs)
-
-                # print(body1_links, body2_links)
-
-                # for link1 in body1_links:
-                #     for link2 in body2_links:
-                #         if pairwise_link_collision(body1, link1, body2, link2, **kwargs):
-                #             print(get_link_name(body1, link1, **kwargs), get_link_name(body2, link2, **kwargs))
-      
                 if verbose:
                     print(body1, body2)
                 return True
@@ -5161,17 +5152,13 @@ def plan_direct_joint_motion(body, joints, end_conf, **kwargs):
     return plan_waypoints_joint_motion(body, joints, [end_conf], **kwargs)
 
 
-def check_initial_end(body, joints, start_conf, end_conf, collision_fn, verbose=True, **kwargs):
+def check_initial_end(start_conf, end_conf, collision_fn):
     # TODO: collision_fn might not accept kwargs
-    if collision_fn(start_conf, verbose=verbose):
-        set_joint_positions(body, joints, start_conf, **kwargs)
+    if collision_fn(start_conf):
         print("Warning: initial configuration is in collision")
-        wait_if_gui(**kwargs)
         return False
-    if collision_fn(end_conf, verbose=verbose):
-        set_joint_positions(body, joints, end_conf, **kwargs)
+    if collision_fn(end_conf):
         print("Warning: end configuration is in collision")
-        wait_if_gui(**kwargs)
         return False
     return True
 
@@ -5217,7 +5204,7 @@ def plan_joint_motion(
     )
 
     start_conf = get_joint_positions(body, joints, **kwargs)
-    if not check_initial_end(body, joints, start_conf, end_conf, collision_fn, **kwargs):
+    if not check_initial_end(start_conf, end_conf, collision_fn):
         return None
 
     if algorithm is None:
@@ -5371,7 +5358,7 @@ def plan_2d_joint_motion(
 
         return False 
 
-    if not check_initial_end(robot, joints, start_conf, end_conf, collision_fn):
+    if not check_initial_end(start_conf, end_conf, collision_fn):
         # q = end_conf
         # new_oobb = OOBB(
         #         aabb=robot_aabb,
@@ -5674,7 +5661,7 @@ def plan_nonholonomic_motion(
     )
 
     start_conf = get_joint_positions(body, joints)
-    if not check_initial_end(body, joints, start_conf, end_conf, collision_fn):
+    if not check_initial_end(start_conf, end_conf, collision_fn):
         return None
 
     if algorithm is None:

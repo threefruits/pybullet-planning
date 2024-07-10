@@ -3,6 +3,8 @@
 from __future__ import print_function
 
 import time
+import sys
+sys.path.append('..')
 
 import numpy as np
 import pybullet as p

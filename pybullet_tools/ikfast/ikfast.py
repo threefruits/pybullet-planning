@@ -203,14 +203,16 @@ def ikfast_inverse_kinematics(
     # assert is_ik_compiled(ikfast_info)
     ikfast = import_ikfast(ikfast_info)
     ik_joints = get_ik_joints(robot, ikfast_info, tool_link, **kwargs)
+    # print("ik_joints: ", ik_joints)
     free_joints = joints_from_names(robot, ikfast_info.free_joints, **kwargs)
+    # print("free_joints: ", free_joints)
     base_from_ee = get_base_from_ee(
         robot, ikfast_info, tool_link, world_from_target, **kwargs
     )
     difference_fn = get_difference_fn(robot, ik_joints, **kwargs)
     current_conf = get_joint_positions(robot, ik_joints, **kwargs)
     current_positions = get_joint_positions(robot, free_joints, **kwargs)
-
+    # print("current_conf: ", current_conf)
     # TODO: handle circular joints
     # TODO: use norm=INF to limit the search for free values
     free_deltas = np.array(
@@ -232,6 +234,7 @@ def ikfast_inverse_kinematics(
     for free_positions in generator:
         if max_time < elapsed_time(start_time):
             break
+        # from .fetch.ikfast_fetch import armIK
         for conf in randomize(
             compute_inverse_kinematics(
                 ikfast.get_ik, base_from_ee, free_positions, **kwargs
@@ -239,6 +242,11 @@ def ikfast_inverse_kinematics(
         ):
             # solution(robot, ik_joints, conf, tool_link, world_from_target)
             difference = difference_fn(current_conf, conf)
+            # print("ik: ", ikfast.get_ik)
+            print("free_positions: ", free_positions)
+            print("current_conf: ", current_conf)
+            print("conf: ", conf)
+
             if not violates_limits(robot, ik_joints, conf, **kwargs) and (
                 get_length(difference, norm=norm) <= max_distance
             ):

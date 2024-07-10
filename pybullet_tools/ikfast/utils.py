@@ -40,6 +40,7 @@ def compute_inverse_kinematics(ik_fn, pose, sampled=[], **kwargs):
         solutions = ik_fn(list(rot), list(pos), list(sampled))
     if solutions is None:
         return []
+    # print(solutions)
     return solutions
 
 

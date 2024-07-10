@@ -3,7 +3,9 @@
 from __future__ import print_function
 
 import pybullet as p
-from pybullet_tools.ikfast.panda.ik import FRANKA_URDF, PANDA_INFO
+# from pybullet_tools.ikfast.panda.ik import FRANKA_URDF, PANDA_INFO
+from pybullet_tools.ikfast.franka_panda.ik import PANDA_INFO, FRANKA_URDF
+
 from pybullet_tools.ikfast.ikfast import (
     check_ik_solver,
     either_inverse_kinematics,
